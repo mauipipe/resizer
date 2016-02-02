@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/nfnt/resize"
-	"github.com/spf13/viper"
+	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/nfnt/resize"
+	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/spf13/viper"
 	"image"
 	"image/jpeg"
 	"image/png"
