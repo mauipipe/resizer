@@ -10,12 +10,20 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type Configuration struct {
 	Port          uint
 	HostWhiteList []string
 	Size          Size
+	Placeholders []Placeholder
+}
+
+type Placeholder struct {
+	Name string
+	Width  uint
+	Height uint
 }
 
 type Size struct {
@@ -36,14 +44,31 @@ func parseInteger(value string) (uint, error) {
 	return uint(integer), err
 }
 
-// Resizing endpoint.
-func resizing(w http.ResponseWriter, r *http.Request) {
+func GetImageSize(imageSize string, config *Configuration) *Size {
 	size := new(Size)
 
+	for _, placeholder := range config.Placeholders {
+		if placeholder.Name == imageSize {
+			size.Width = placeholder.Width
+			size.Height = placeholder.Height
+			return size
+		}
+	}
+
+	// If we didn't found the placeholder then we split the size
+	parts := strings.Split(imageSize, "x")
+	size.Width, _ = parseInteger(parts[0])
+	size.Height, _ = parseInteger(parts[1])
+
+	return size
+}
+
+// Resizing endpoint.
+func resizing(w http.ResponseWriter, r *http.Request) {
 	// Get parameters
 	imageUrl := r.FormValue("image")
-	size.Width, _ = parseInteger(r.FormValue("width"))
-	size.Height, _ = parseInteger(r.FormValue("height"))
+
+	size := GetImageSize(r.FormValue("size"), config)
 
 	validator := Validator{config}
 

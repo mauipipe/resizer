@@ -1,12 +1,19 @@
 {
   "port": 8080,
   "hostwhitelist": [
-      "my-cdn-image.com",
-      "([a-z]+).cloudfront.net",
-      "estaticos03.elmundo.es"
+    "my-cdn-image.com",
+    "([a-z]+).cloudfront.net",
+    "estaticos03.elmundo.es"
   ],
   "size": {
     "width": 2000,
     "height": 1000
-  }
+  },
+  "placeholders": [
+    {
+      "name": "web",
+      "width": 200,
+      "height": 300
+    }
+  ]
 }
