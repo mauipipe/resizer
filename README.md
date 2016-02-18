@@ -1,4 +1,4 @@
-# resizer [![Build Status](https://travis-ci.org/ssola/resizer.svg)](https://travis-ci.org/ssola/resizer)
+# resizer [![Build Status](https://travis-ci.org/hellofresh/resizer.svg?branch=master)](https://travis-ci.org/hellofresh/resizer)
 
 This is a naive approach to build an image resizing service. At the moment given few parameters the system returns the image resized.
 
