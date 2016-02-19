@@ -46,3 +46,33 @@ func Test_CheckHostInWhiteListWithValidPattern(t *testing.T) {
 		t.Errorf("Should not to return an error!!!")
 	}
 }
+
+func Test_CheckSizeIsAllowed(t *testing.T) {
+	config := new(Configuration)
+	config.SizeLimits = Size{1000, 1000}
+	validator := Validator{config}
+
+	givenSize := new(Size)
+	givenSize.Width = 993
+	givenSize.Height = 399
+
+	err := validator.CheckRequestNewSize(givenSize)
+	if err != nil {
+		t.Errorf("Should not to return an error!!")
+	}
+}
+
+func Test_CHeckSizeIsNotAllows(t *testing.T) {
+	config := new(Configuration)
+	config.SizeLimits = Size{1000, 1000}
+	validator := Validator{config}
+
+	givenSize := new(Size)
+	givenSize.Width = 9999
+	givenSize.Height = 399
+
+	err := validator.CheckRequestNewSize(givenSize)
+	if err == nil {
+		t.Errorf("Should to return an error!!")
+	}
+}

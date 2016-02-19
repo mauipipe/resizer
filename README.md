@@ -17,8 +17,8 @@ Resizing endpoint:
 GET host:8080/resize
 
 **Parameters**:
-- image: Current image url you want to change
-- size: You can specify an image size like 100x100 or an already predefined placeholder like thumbnail
+- **image**: Current image url you want to change
+- **size**: You can specify an image size like 100x100 or an already predefined placeholder like thumbnail
 
 #### Configuration
 
