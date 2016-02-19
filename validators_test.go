@@ -75,4 +75,11 @@ func Test_CHeckSizeIsNotAllows(t *testing.T) {
 	if err == nil {
 		t.Errorf("Should to return an error!!")
 	}
+
+	givenSize.Width = 0
+	newErr := validator.CheckRequestNewSize(givenSize)
+
+	if newErr == nil {
+		t.Errorf("Width or height should be bigger than 0")
+	}
 }

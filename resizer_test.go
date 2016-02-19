@@ -25,3 +25,21 @@ func Test_GetImageSize(t *testing.T) {
 		t.Errorf("With or Height are wrong with a missing placeholder")
 	}
 }
+
+func Test_ParseInteger(t *testing.T) {
+	value, _ := parseInteger("4")
+
+	if (value != 4) {
+		t.Errorf("Value isn't 4")
+	}
+
+	newValue, err := parseInteger("this isnt a number")
+
+	if (err == nil) {
+		t.Errorf("We were  expecting an error")
+	}
+
+	if (newValue != 0) {
+		t.Errorf("Given a string value should be 0")
+	}
+}
