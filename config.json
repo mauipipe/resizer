@@ -12,8 +12,10 @@
   "placeholders": [
     {
       "name": "web",
-      "width": 200,
-      "height": 300
+      "size" : {
+        "width": 200,
+        "height": 300
+      }
     }
   ]
 }

@@ -22,8 +22,7 @@ type Configuration struct {
 
 type Placeholder struct {
 	Name string
-	Width  uint
-	Height uint
+	Size *Size
 }
 
 type Size struct {
@@ -49,16 +48,16 @@ func GetImageSize(imageSize string, config *Configuration) *Size {
 
 	for _, placeholder := range config.Placeholders {
 		if placeholder.Name == imageSize {
-			size.Width = placeholder.Width
-			size.Height = placeholder.Height
-			return size
+			return placeholder.Size
 		}
 	}
 
 	// If we didn't found the placeholder then we split the size
 	parts := strings.Split(imageSize, "x")
-	size.Width, _ = parseInteger(parts[0])
-	size.Height, _ = parseInteger(parts[1])
+	if (len(parts) == 2) {
+		size.Width, _ = parseInteger(parts[0])
+		size.Height, _ = parseInteger(parts[1])
+	}
 
 	return size
 }
