@@ -16,7 +16,7 @@ import (
 type Configuration struct {
 	Port          uint
 	HostWhiteList []string
-	Size          Size
+	SizeLimits     Size
 	Placeholders []Placeholder
 }
 

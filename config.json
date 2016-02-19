@@ -5,7 +5,7 @@
     "([a-z]+).cloudfront.net",
     "estaticos03.elmundo.es"
   ],
-  "size": {
+  "sizelimits": {
     "width": 2000,
     "height": 1000
   },

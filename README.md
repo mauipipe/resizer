@@ -28,6 +28,7 @@ By default we provide a dummy config.json file with some useless default values.
 - Configure default port to listen
 - List of white hosts allowed to resize the image
 - Max height and width for the new image
+- List of placeholders with predefined size
 
 About the hosts by default all of them are restricted. But you can add as many hosts as you want and you can use regular expressions!
 
@@ -37,6 +38,19 @@ For example you can do something like this:
 {
     "hostwhitelist": [
         "([a-z]+).supercdn.com"
+    ],
+    "sizelimits": {
+        "height": 1000,
+        "width": 1000
+    },
+    "placeholders" : [
+        {
+            "name": "thumbnail",
+            "size": {
+                "width": 100,
+                "height": 100
+            }
+        }
     ]
 }
 ```
@@ -58,3 +72,4 @@ This service relies on top of some greate packages like:
 - [x] Configure server with configuration files
 - [x] Move validators to another Go file
 - [x] Allow to find hosts by regex patterns
+- [x] Allow to have placeholders with default sizes
