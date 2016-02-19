@@ -18,8 +18,7 @@ GET host:8080/resize
 
 **Parameters**:
 - image: Current image url you want to change
-- width: New width of the image
-- height: New image height
+- size: You can specify an image size like 100x100 or an already predefined placeholder like thumbnail
 
 #### Configuration
 
