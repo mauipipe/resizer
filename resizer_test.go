@@ -9,7 +9,7 @@ func Test_GetImageSize(t *testing.T) {
 	config.Placeholders = make([]Placeholder, 1)
 	config.Placeholders[0] = Placeholder{"test", &Size{100, 102}}
 
-	size := GetImageSize("1000x23", config)
+	size := GetImageSize("1000,23", config)
 
 	if (size.Width != 1000 || size.Height != 23) {
 		t.Errorf("With or height is wrong")

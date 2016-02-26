@@ -1,5 +1,6 @@
 {
   "port": 8080,
+  "imagehost": "https://s3-eu-west-1.amazonaws.com/hf-recipes/",
   "hostwhitelist": [
     "my-cdn-image.com",
     "([a-z]+).cloudfront.net",

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/nfnt/resize"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/spf13/viper"
+	"github.com/gorilla/mux"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -14,10 +15,11 @@ import (
 )
 
 type Configuration struct {
-	Port          uint
-	HostWhiteList []string
-	SizeLimits     Size
-	Placeholders []Placeholder
+	Port          	uint
+	ImageHost	 	string
+	HostWhiteList 	[]string
+	SizeLimits     	Size
+	Placeholders 	[]Placeholder
 }
 
 type Placeholder struct {
@@ -53,7 +55,7 @@ func GetImageSize(imageSize string, config *Configuration) *Size {
 	}
 
 	// If we didn't found the placeholder then we split the size
-	parts := strings.Split(imageSize, "x")
+	parts := strings.Split(imageSize, ",")
 	if (len(parts) == 2) {
 		size.Width, _ = parseInteger(parts[0])
 		size.Height, _ = parseInteger(parts[1])
@@ -64,17 +66,19 @@ func GetImageSize(imageSize string, config *Configuration) *Size {
 
 // Resizing endpoint.
 func resizing(w http.ResponseWriter, r *http.Request) {
-	// Get parameters
-	imageUrl := r.FormValue("image")
+	params := mux.Vars(r)
 
-	size := GetImageSize(r.FormValue("size"), config)
+	// Get parameters
+	imageUrl := fmt.Sprintf("%s%s", config.ImageHost, params["path"])
+
+	size := GetImageSize(params["size"], config)
 
 	validator := Validator{config}
 
-	if err := validator.CheckHostInWhiteList(imageUrl); err != nil {
-		formatError(err, w)
-		return
-	}
+//	if err := validator.CheckHostInWhiteList(imageUrl); err != nil {
+//		formatError(err, w)
+//		return
+//	}
 
 	if err := validator.CheckRequestNewSize(size); err != nil {
 		formatError(err, w)
@@ -92,7 +96,22 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	finalImage, _, _ := image.Decode(imageBuffer.Body)
 	r.Body.Close()
 
-	imageResized := resize.Resize(size.Width, size.Height, finalImage, resize.Lanczos3)
+	// calculate aspect ratio
+	if (size.Width > 0 && size.Height > 0) {
+		b := finalImage.Bounds()
+		ratio := float32(b.Max.Y) / float32(b.Max.X)
+		width := uint(size.Width)
+		height := float32(width) * ratio
+		if (uint(height) > size.Height) {
+			height = float32(size.Height)
+			width = uint(float32(height) / ratio)
+		}
+
+		size.Height = uint(height)
+		size.Width = width
+	}
+
+	imageResized := resize.Resize(size.Width, size.Height, finalImage, resize.NearestNeighbor)
 
 	contentType := imageBuffer.Header.Get("Content-Type")
 	switch contentType {
@@ -122,6 +141,9 @@ func main() {
 	// Marshal the configuration into our Struct
 	viper.Unmarshal(&config)
 
-	http.HandleFunc("/resize", resizing)
+	rtr := mux.NewRouter()
+	rtr.HandleFunc("/resize/{size}/{path:(.*)}", resizing).Methods("GET")
+
+	http.Handle("/", rtr)
 	http.ListenAndServe(fmt.Sprintf(":%d", config.Port), nil)
 }
