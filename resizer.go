@@ -93,6 +93,11 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if imageBuffer.StatusCode != 200 {
+		http.NotFound(w, r)
+		return
+	}
+
 	finalImage, _, _ := image.Decode(imageBuffer.Body)
 	r.Body.Close()
 

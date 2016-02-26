@@ -7,15 +7,15 @@
     "estaticos03.elmundo.es"
   ],
   "sizelimits": {
-    "width": 2000,
-    "height": 1000
+    "width": 1501,
+    "height": 1001
   },
   "placeholders": [
     {
       "name": "web",
       "size" : {
-        "width": 200,
-        "height": 300
+        "width": 0,
+        "height": 1000
       }
     }
   ]
