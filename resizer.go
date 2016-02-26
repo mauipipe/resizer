@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/nfnt/resize"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/spf13/viper"
-	"github.com/gorilla/mux"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -15,11 +15,11 @@ import (
 )
 
 type Configuration struct {
-	Port          	uint
-	ImageHost	 	string
-	HostWhiteList 	[]string
-	SizeLimits     	Size
-	Placeholders 	[]Placeholder
+	Port          uint
+	ImageHost     string
+	HostWhiteList []string
+	SizeLimits    Size
+	Placeholders  []Placeholder
 }
 
 type Placeholder struct {
@@ -56,7 +56,7 @@ func GetImageSize(imageSize string, config *Configuration) *Size {
 
 	// If we didn't found the placeholder then we split the size
 	parts := strings.Split(imageSize, ",")
-	if (len(parts) == 2) {
+	if len(parts) == 2 {
 		size.Width, _ = parseInteger(parts[0])
 		size.Height, _ = parseInteger(parts[1])
 	}
@@ -75,10 +75,10 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 
 	validator := Validator{config}
 
-//	if err := validator.CheckHostInWhiteList(imageUrl); err != nil {
-//		formatError(err, w)
-//		return
-//	}
+	//	if err := validator.CheckHostInWhiteList(imageUrl); err != nil {
+	//		formatError(err, w)
+	//		return
+	//	}
 
 	if err := validator.CheckRequestNewSize(size); err != nil {
 		formatError(err, w)
@@ -97,12 +97,12 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	r.Body.Close()
 
 	// calculate aspect ratio
-	if (size.Width > 0 && size.Height > 0) {
+	if size.Width > 0 && size.Height > 0 {
 		b := finalImage.Bounds()
 		ratio := float32(b.Max.Y) / float32(b.Max.X)
 		width := uint(size.Width)
 		height := float32(width) * ratio
-		if (uint(height) > size.Height) {
+		if uint(height) > size.Height {
 			height = float32(size.Height)
 			width = uint(float32(height) / ratio)
 		}
