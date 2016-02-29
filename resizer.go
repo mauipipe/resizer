@@ -3,15 +3,16 @@ package main
 import (
 	"fmt"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/gorilla/mux"
-	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/nfnt/resize"
+	"github.com/daddye/vips"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/spf13/viper"
 	"image"
 	"image/jpeg"
-	"image/png"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
+	"bytes"
 )
 
 type Configuration struct {
@@ -93,13 +94,14 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.Body.Close()
+	log.Printf("Status code [%d]", imageBuffer.StatusCode )
 	if imageBuffer.StatusCode != 200 {
 		http.NotFound(w, r)
 		return
 	}
 
 	finalImage, _, _ := image.Decode(imageBuffer.Body)
-	r.Body.Close()
 
 	// calculate aspect ratio
 	if size.Width > 0 && size.Height > 0 {
@@ -116,18 +118,53 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		size.Width = width
 	}
 
-	imageResized := resize.Resize(size.Width, size.Height, finalImage, resize.NearestNeighbor)
+	start := time.Now()
+	options := vips.Options{
+		Width: int(size.Width),
+		Height: int(size.Height),
+		Crop: false,
+		Extend: vips.EXTEND_WHITE,
+		Interpolator: vips.BILINEAR,
+		Gravity: vips.CENTRE,
+		Quality: 95,
+	}
+
+	buf := new(bytes.Buffer)
+	_ = jpeg.Encode(buf, finalImage, nil)
+	imageResized, err := vips.Resize(buf.Bytes(), options)
+	if err != nil {
+		formatError(err, w)
+		return
+	}
+
+	elapsed := time.Since(start)
+	log.Printf("It took %f", elapsed.Seconds())
 
 	contentType := imageBuffer.Header.Get("Content-Type")
 	switch contentType {
 	case "image/png":
-		png.Encode(w, imageResized)
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Content-Length", strconv.Itoa(len(imageResized)))
+		if _, err := w.Write(imageResized); err != nil {
+			formatError(err, w)
+			return
+		}
 		log.Printf("Successfully handled content type '%s'\n", contentType)
 	case "image/jpeg":
-		jpeg.Encode(w, imageResized, nil)
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Header().Set("Content-Length", strconv.Itoa(len(imageResized)))
+		if _, err := w.Write(imageResized); err != nil {
+			formatError(err, w)
+			return
+		}
 		log.Printf("Successfully handled content type '%s'\n", contentType)
 	case "binary/octet-stream":
-		jpeg.Encode(w, imageResized, nil)
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Header().Set("Content-Length", strconv.Itoa(len(imageResized)))
+		if _, err := w.Write(imageResized); err != nil {
+			formatError(err, w)
+			return
+		}
 		log.Printf("Successfully handled content type '%s'\n", contentType)
 	default:
 		log.Printf("Cannot handle content type '%s'\n", contentType)
@@ -149,6 +186,12 @@ func main() {
 	rtr := mux.NewRouter()
 	rtr.HandleFunc("/resize/{size}/{path:(.*)}", resizing).Methods("GET")
 
-	http.Handle("/", rtr)
-	http.ListenAndServe(fmt.Sprintf(":%d", config.Port), nil)
+	server := &http.Server{
+		Addr: fmt.Sprintf(":%d", config.Port),
+		Handler: rtr,
+		ReadTimeout: 3 * time.Second,
+		WriteTimeout: 5 * time.Second,
+	}
+
+	server.ListenAndServe()
 }
