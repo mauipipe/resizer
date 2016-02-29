@@ -14,17 +14,20 @@ By now it listen automatically to port 8080 by default (this should be changed i
 
 Resizing endpoint:
 
-GET host:8080/resize
+GET host:8080/resize/[size]/[s3_path]
 
 **Parameters**:
-- **image**: Current image url you want to change
-- **size**: You can specify an image size like 100x100 or an already predefined placeholder like thumbnail
+- **size**: Here you can specify a placeholder (like web) or a size like 200,203
+- **s3_path**: The path where we can find that image in our amazon s3 buckets
+
+Currently we are respecting the aspect ratio of the original image. That means size will not be for example 200,203.
 
 #### Configuration
 
 By default we provide a dummy config.json file with some useless default values. In this configuration you can do:
 
 - Configure default port to listen
+- Configure the path to the aws bucket
 - List of white hosts allowed to resize the image
 - Max height and width for the new image
 - List of placeholders with predefined size
@@ -35,6 +38,7 @@ For example you can do something like this:
 
 ```json
 {
+    "imagehost": "https://amazon.s3.bucket.com",
     "hostwhitelist": [
         "([a-z]+).supercdn.com"
     ],
@@ -58,10 +62,11 @@ The previous example show you how to allow any something.supercdn.com host.
 
 #### Dependencies
 
-This service relies on top of some greate packages like:
+This service relies on top of some great packages like:
 
 - https://github.com/spf13/viper
 - https://github.com/nfnt/resize
+- https://github.com/gorilla/mux
 
 #### TODO
 
