@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"runtime"
+	"time"
 )
 
 type Configuration struct {
@@ -70,15 +72,8 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 
 	// Get parameters
 	imageUrl := fmt.Sprintf("%s%s", config.ImageHost, params["path"])
-
 	size := GetImageSize(params["size"], config)
-
 	validator := Validator{config}
-
-	//	if err := validator.CheckHostInWhiteList(imageUrl); err != nil {
-	//		formatError(err, w)
-	//		return
-	//	}
 
 	if err := validator.CheckRequestNewSize(size); err != nil {
 		formatError(err, w)
@@ -93,13 +88,15 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.Body.Close()
+	defer imageBuffer.Body.Close()
+
 	if imageBuffer.StatusCode != 200 {
 		http.NotFound(w, r)
 		return
 	}
 
 	finalImage, _, _ := image.Decode(imageBuffer.Body)
-	r.Body.Close()
 
 	// calculate aspect ratio
 	if size.Width > 0 && size.Height > 0 {
@@ -117,8 +114,9 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	imageResized := resize.Resize(size.Width, size.Height, finalImage, resize.NearestNeighbor)
-
 	contentType := imageBuffer.Header.Get("Content-Type")
+	defer imageBuffer.Body.Close()
+
 	switch contentType {
 	case "image/png":
 		png.Encode(w, imageResized)
@@ -134,7 +132,12 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "OK")
+}
+
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	// Load configuration
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
@@ -148,7 +151,14 @@ func main() {
 
 	rtr := mux.NewRouter()
 	rtr.HandleFunc("/resize/{size}/{path:(.*)}", resizing).Methods("GET")
+	rtr.HandleFunc("/health-check", healthCheck).Methods("GET")
 
-	http.Handle("/", rtr)
-	http.ListenAndServe(fmt.Sprintf(":%d", config.Port), nil)
+	server := &http.Server{
+		Addr: fmt.Sprintf(":%d", config.Port),
+		Handler: rtr,
+		ReadTimeout: 5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+	}
+
+	server.ListenAndServe()
 }
