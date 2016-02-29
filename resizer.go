@@ -7,6 +7,7 @@ import (
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/spf13/viper"
 	"image"
 	"image/jpeg"
+	"image/png"
 	"log"
 	"net/http"
 	"strconv"
@@ -126,7 +127,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		Extend: vips.EXTEND_WHITE,
 		Interpolator: vips.BILINEAR,
 		Gravity: vips.CENTRE,
-		Quality: 95,
+		Quality: 75,
 	}
 
 	buf := new(bytes.Buffer)
@@ -137,34 +138,21 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	imageCreated, _ := jpeg.Decode(bytes.NewReader(imageResized))
+
 	elapsed := time.Since(start)
 	log.Printf("It took %f", elapsed.Seconds())
 
 	contentType := imageBuffer.Header.Get("Content-Type")
 	switch contentType {
 	case "image/png":
-		w.Header().Set("Content-Type", "image/png")
-		w.Header().Set("Content-Length", strconv.Itoa(len(imageResized)))
-		if _, err := w.Write(imageResized); err != nil {
-			formatError(err, w)
-			return
-		}
+		png.Encode(w, imageCreated)
 		log.Printf("Successfully handled content type '%s'\n", contentType)
 	case "image/jpeg":
-		w.Header().Set("Content-Type", "image/jpeg")
-		w.Header().Set("Content-Length", strconv.Itoa(len(imageResized)))
-		if _, err := w.Write(imageResized); err != nil {
-			formatError(err, w)
-			return
-		}
+		jpeg.Encode(w, imageCreated, nil)
 		log.Printf("Successfully handled content type '%s'\n", contentType)
 	case "binary/octet-stream":
-		w.Header().Set("Content-Type", "image/jpeg")
-		w.Header().Set("Content-Length", strconv.Itoa(len(imageResized)))
-		if _, err := w.Write(imageResized); err != nil {
-			formatError(err, w)
-			return
-		}
+		jpeg.Encode(w, imageCreated, nil)
 		log.Printf("Successfully handled content type '%s'\n", contentType)
 	default:
 		log.Printf("Cannot handle content type '%s'\n", contentType)
@@ -189,8 +177,8 @@ func main() {
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%d", config.Port),
 		Handler: rtr,
-		ReadTimeout: 3 * time.Second,
-		WriteTimeout: 5 * time.Second,
+		ReadTimeout: 10 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
 
 	server.ListenAndServe()
