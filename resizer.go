@@ -106,7 +106,7 @@ func init() {
 	cacheStats = new(CacheStats)
 	flatTransform := func(s string) []string { return []string{} }
 	cache = diskv.New(diskv.Options{
-		BasePath:     "~/cache/",
+		BasePath:     cachePath,
 		Transform:    flatTransform,
 		CacheSizeMax: 1024 * 1024 * 1024,
 	})
