@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"os"
 )
 
 const (
@@ -95,6 +96,12 @@ func getClient() *http.Client {
 }
 
 func init() {
+	var cachePath string
+	cachePath = os.Getenv("RESIZER_CACHE_PATH")
+	if cachePath == "" {
+		cachePath = "/tmp"
+	}
+
 	httpClient = getClient()
 	cacheStats = new(CacheStats)
 	flatTransform := func(s string) []string { return []string{} }
