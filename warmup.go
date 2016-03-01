@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"crypto/tls"
 	"encoding/json"
+	"os"
 )
 
 type Recipe struct {
@@ -20,6 +21,14 @@ type Collection struct {
 func warmUp(w http.ResponseWriter, r *http.Request) {
 	var token string
 	var country string
+
+	var server string
+	server = os.Getenv("RESIZER_ENDPOINT")
+	log.Printf("%s", server)
+	if server == "" {
+		formatError(fmt.Errorf("Not host defined"), w)
+		return
+	}
 
 	token = r.FormValue("token")
 	log.Printf("Token %s", token)
@@ -62,17 +71,18 @@ func warmUp(w http.ResponseWriter, r *http.Request) {
 
 	for i:= 0; i <= 99; i++ {
 		log.Printf("Recipe: %s", collection.Items[i].Id)
-		downloadImage(collection.Items[i].Id)
+		go downloadImage(collection.Items[i].Id, server)
 	}
 
+	log.Printf("Warmup done for %s", country)
 	w.Header().Add("Content-Type", "application/json")
 	fmt.Fprint(w, "Done!")
 }
 
-func downloadImage(id string) {
+func downloadImage(id string, server string) {
 	// we can then warmup those images
 	for _, size := range config.Warmupsizes {
-		imageUrl := fmt.Sprintf("http://127.0.0.1:8080/resize/%d,%d/image/%s.jpg", size.Width, size.Height, id)
+		imageUrl := fmt.Sprintf("%s/%d,%d/image/%s.jpg", server, size.Width, size.Height, id)
 		res, _ := http.Get(imageUrl)
 
 		if res.StatusCode == 200 {
