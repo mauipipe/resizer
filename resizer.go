@@ -32,11 +32,13 @@ var (
 )
 
 type Configuration struct {
-	Port          uint
-	ImageHost     string
-	HostWhiteList []string
-	SizeLimits    Size
-	Placeholders  []Placeholder
+	Port          	uint
+	ImageHost     	string
+	HostWhiteList 	[]string
+	SizeLimits    	Size
+	Placeholders  	[]Placeholder
+	Warmupsizes		[]Size
+	Cachethumbnails bool
 }
 
 type Placeholder struct {
@@ -139,7 +141,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	key := fmt.Sprintf("%d_%d_%s", size.Height, size.Width, imageId)
 	log.Printf("Caching key %s", key)
 
-	if cache.Has(key) {
+	if config.Cachethumbnails && cache.Has(key) {
 		log.Printf("Cached hit!")
 		cacheStats.hit()
 		cachedImage, _ := cache.ReadStream(key, true)
@@ -147,7 +149,9 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		jpeg.Encode(w, finalImage, nil)
 		return
 	} else {
-		cacheStats.miss()
+		if config.Cachethumbnails {
+			cacheStats.miss()
+		}
 	}
 
 	// Download the image
@@ -225,11 +229,13 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// store image to cache
-	buf := new(bytes.Buffer)
-	_ = jpeg.Encode(buf, imageResized, nil)
-	if err := cache.WriteStream(key, buf, true); err != nil {
-		formatError(err, w)
-		return
+	if config.Cachethumbnails {
+		buf := new(bytes.Buffer)
+		_ = jpeg.Encode(buf, imageResized, nil)
+		if err := cache.WriteStream(key, buf, true); err != nil {
+			formatError(err, w)
+			return
+		}
 	}
 
 	originalBuf := new(bytes.Buffer)
@@ -288,12 +294,11 @@ func main() {
 	rtr.HandleFunc("/resize/{size}/{path:(.*)}", resizing).Methods("GET")
 	rtr.HandleFunc("/health-check", healthCheck).Methods("GET")
 	rtr.HandleFunc("/purge", purgeCache).Methods("GET")
+	rtr.HandleFunc("/warmup", warmUp).Methods("GET")
 
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%d", config.Port),
 		Handler: rtr,
-		ReadTimeout: 5 * time.Second,
-		WriteTimeout: 5 * time.Second,
 	}
 
 	server.ListenAndServe()
