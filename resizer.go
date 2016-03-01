@@ -5,6 +5,7 @@ import (
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/nfnt/resize"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/spf13/viper"
+	"github.com/peterbourgon/diskv"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -14,6 +15,20 @@ import (
 	"strings"
 	"runtime"
 	"time"
+	"bytes"
+	"path"
+)
+
+const (
+	MaxIdleConnections int = 50
+	RequestTimeout     int = 5
+)
+
+var (
+	httpClient *http.Client
+	config *Configuration
+	cache *diskv.Diskv
+	cacheStats *CacheStats
 )
 
 type Configuration struct {
@@ -34,7 +49,11 @@ type Size struct {
 	Height uint
 }
 
-var config *Configuration
+type CacheStats struct {
+	Hits uint64
+	Misses uint64
+}
+
 
 // Return a given error in JSON format to the ResponseWriter
 func formatError(err error, w http.ResponseWriter) {
@@ -66,6 +85,41 @@ func GetImageSize(imageSize string, config *Configuration) *Size {
 	return size
 }
 
+
+func getClient() *http.Client {
+	client := &http.Client{
+		Timeout: time.Duration(RequestTimeout) * time.Second,
+	}
+
+	return client
+}
+
+func init() {
+	httpClient = getClient()
+	cacheStats = new(CacheStats)
+	flatTransform := func(s string) []string { return []string{} }
+	cache = diskv.New(diskv.Options{
+		BasePath: "~/cache/",
+		Transform: flatTransform,
+		CacheSizeMax: 1024 * 1024 * 1024,
+	})
+}
+
+func (self *CacheStats) hit() {
+	self.Hits++
+}
+
+func  (self *CacheStats) miss() {
+	self.Misses++
+}
+
+func extractIdFromUrl(url string) string {
+	i, j := strings.LastIndex(url, "/"), strings.LastIndex(url, path.Ext(url))
+	name := url[i+1:j]
+
+	return name
+}
+
 // Resizing endpoint.
 func resizing(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
@@ -80,23 +134,71 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Download the image
-	imageBuffer, err := http.Get(imageUrl)
+	// Build caching key
+	imageId := extractIdFromUrl(imageUrl)
+	key := fmt.Sprintf("%d_%d_%s", size.Height, size.Width, imageId)
+	log.Printf("Caching key %s", key)
 
-	if err != nil {
-		formatError(err, w)
+	if cache.Has(key) {
+		log.Printf("Cached hit!")
+		cacheStats.hit()
+		cachedImage, _ := cache.ReadStream(key, true)
+		finalImage, _, _ := image.Decode(cachedImage)
+		jpeg.Encode(w, finalImage, nil)
 		return
+	} else {
+		cacheStats.miss()
+	}
+
+	// Download the image
+	originalImageKey := fmt.Sprintf("original_%s", imageId)
+
+	imageBuffer := new(http.Response)
+	if cache.Has(originalImageKey) {
+		cacheStats.hit()
+		log.Printf("original image cache hitted")
+
+		cachedResponse, err := cache.ReadStream(originalImageKey, true)
+
+		if err != nil {
+			formatError(err, w)
+			return
+		}
+
+		imageBuffer.Body = cachedResponse
+		imageBuffer.StatusCode = 200
+		imageBuffer.Header = make(http.Header)
+		imageBuffer.Header.Add("Content-Type", "image/jpeg")
+	} else {
+		cacheStats.miss()
+		response, err := httpClient.Get(imageUrl)
+
+		if err != nil {
+			formatError(err, w)
+			return
+		} else {
+			if err = cache.WriteStream(originalImageKey, response.Body, true); err != nil {
+				formatError(err, w)
+				return
+			}
+
+			imageBuffer = response
+			defer response.Body.Close()
+		}
 	}
 
 	defer r.Body.Close()
-	defer imageBuffer.Body.Close()
 
 	if imageBuffer.StatusCode != 200 {
 		http.NotFound(w, r)
 		return
 	}
 
-	finalImage, _, _ := image.Decode(imageBuffer.Body)
+	finalImage, err := jpeg.Decode(imageBuffer.Body)
+	if err != nil {
+		formatError(err, w)
+		return
+	}
 
 	// calculate aspect ratio
 	if size.Width > 0 && size.Height > 0 {
@@ -115,7 +217,15 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 
 	imageResized := resize.Resize(size.Width, size.Height, finalImage, resize.NearestNeighbor)
 	contentType := imageBuffer.Header.Get("Content-Type")
-	defer imageBuffer.Body.Close()
+
+	// store image to cache
+	buf := new(bytes.Buffer)
+	_ = jpeg.Encode(buf, imageResized, nil)
+
+	if err = cache.WriteStream(key, buf, true); err != nil {
+		formatError(err, w)
+		return
+	}
 
 	switch contentType {
 	case "image/png":
@@ -133,7 +243,19 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "OK")
+	response := fmt.Sprintf("{\"status\": \"ok\",\"cache\": {\"hits\": %d,\"misses\": %d}}", cacheStats.Hits, cacheStats.Misses)
+	fmt.Fprint(w, response)
+}
+
+func purgeCache(w http.ResponseWriter, r *http.Request) {
+	err := cache.EraseAll()
+
+	if (err != nil) {
+		formatError(err, w)
+		return
+	}
+
+	fmt.Fprint(w, fmt.Sprintf("OK"))
 }
 
 func main() {
@@ -152,6 +274,7 @@ func main() {
 	rtr := mux.NewRouter()
 	rtr.HandleFunc("/resize/{size}/{path:(.*)}", resizing).Methods("GET")
 	rtr.HandleFunc("/health-check", healthCheck).Methods("GET")
+	rtr.HandleFunc("/purge", purgeCache).Methods("GET")
 
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%d", config.Port),
