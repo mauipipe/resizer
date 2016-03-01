@@ -1,22 +1,22 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/nfnt/resize"
+	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/peterbourgon/diskv"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/spf13/viper"
-	"github.com/peterbourgon/diskv"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"log"
 	"net/http"
+	"path"
+	"runtime"
 	"strconv"
 	"strings"
-	"runtime"
 	"time"
-	"bytes"
-	"path"
 )
 
 const (
@@ -26,18 +26,18 @@ const (
 
 var (
 	httpClient *http.Client
-	config *Configuration
-	cache *diskv.Diskv
+	config     *Configuration
+	cache      *diskv.Diskv
 	cacheStats *CacheStats
 )
 
 type Configuration struct {
-	Port          	uint
-	ImageHost     	string
-	HostWhiteList 	[]string
-	SizeLimits    	Size
-	Placeholders  	[]Placeholder
-	Warmupsizes		[]Size
+	Port            uint
+	ImageHost       string
+	HostWhiteList   []string
+	SizeLimits      Size
+	Placeholders    []Placeholder
+	Warmupsizes     []Size
 	Cachethumbnails bool
 }
 
@@ -52,10 +52,9 @@ type Size struct {
 }
 
 type CacheStats struct {
-	Hits uint64
+	Hits   uint64
 	Misses uint64
 }
-
 
 // Return a given error in JSON format to the ResponseWriter
 func formatError(err error, w http.ResponseWriter) {
@@ -87,7 +86,6 @@ func GetImageSize(imageSize string, config *Configuration) *Size {
 	return size
 }
 
-
 func getClient() *http.Client {
 	client := &http.Client{
 		Timeout: time.Duration(RequestTimeout) * time.Second,
@@ -101,8 +99,8 @@ func init() {
 	cacheStats = new(CacheStats)
 	flatTransform := func(s string) []string { return []string{} }
 	cache = diskv.New(diskv.Options{
-		BasePath: "~/cache/",
-		Transform: flatTransform,
+		BasePath:     "~/cache/",
+		Transform:    flatTransform,
 		CacheSizeMax: 1024 * 1024 * 1024,
 	})
 }
@@ -111,13 +109,13 @@ func (self *CacheStats) hit() {
 	self.Hits++
 }
 
-func  (self *CacheStats) miss() {
+func (self *CacheStats) miss() {
 	self.Misses++
 }
 
 func extractIdFromUrl(url string) string {
 	i, j := strings.LastIndex(url, "/"), strings.LastIndex(url, path.Ext(url))
-	name := url[i+1:j]
+	name := url[i+1 : j]
 
 	return name
 }
@@ -190,9 +188,9 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	var finalImage image.Image
 	var err error
 
-	if (cachedHit == false) {
+	if cachedHit == false {
 		finalImage, _, err = image.Decode(imageBuffer.Body)
-		if (err != nil) {
+		if err != nil {
 			_ = cache.Erase(originalImageKey)
 			_ = cache.Erase(key)
 			log.Printf("Error jpeg.decode")
@@ -245,7 +243,6 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	switch contentType {
 	case "image/png":
 		png.Encode(w, imageResized)
@@ -269,7 +266,7 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 func purgeCache(w http.ResponseWriter, r *http.Request) {
 	err := cache.EraseAll()
 
-	if (err != nil) {
+	if err != nil {
 		formatError(err, w)
 		return
 	}
@@ -297,7 +294,7 @@ func main() {
 	rtr.HandleFunc("/warmup", warmUp).Methods("GET")
 
 	server := &http.Server{
-		Addr: fmt.Sprintf(":%d", config.Port),
+		Addr:    fmt.Sprintf(":%d", config.Port),
 		Handler: rtr,
 	}
 
