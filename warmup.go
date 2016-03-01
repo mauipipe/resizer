@@ -71,7 +71,7 @@ func warmUp(w http.ResponseWriter, r *http.Request) {
 
 	for i:= 0; i <= 99; i++ {
 		log.Printf("Recipe: %s", collection.Items[i].Id)
-		go downloadImage(collection.Items[i].Id, server)
+		downloadImage(collection.Items[i].Id, server)
 	}
 
 	log.Printf("Warmup done for %s", country)
