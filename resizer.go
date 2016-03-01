@@ -154,50 +154,51 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	originalImageKey := fmt.Sprintf("original_%s", imageId)
 
 	imageBuffer := new(http.Response)
+	var cachedHit bool
+
 	if cache.Has(originalImageKey) {
 		cacheStats.hit()
-		log.Printf("original image cache hitted")
-
-		cachedResponse, err := cache.ReadStream(originalImageKey, true)
-
-		if err != nil {
-			formatError(err, w)
-			return
-		}
-
-		imageBuffer.Body = cachedResponse
-		imageBuffer.StatusCode = 200
-		imageBuffer.Header = make(http.Header)
-		imageBuffer.Header.Add("Content-Type", "image/jpeg")
+		cachedHit = true
 	} else {
+		cachedHit = false
 		cacheStats.miss()
-		response, err := httpClient.Get(imageUrl)
+		log.Printf("Downloading image")
+		var err error
+		imageBuffer, err = httpClient.Get(imageUrl)
 
 		if err != nil {
 			formatError(err, w)
 			return
-		} else {
-			if err = cache.WriteStream(originalImageKey, response.Body, true); err != nil {
-				formatError(err, w)
-				return
-			}
-
-			imageBuffer = response
-			defer response.Body.Close()
 		}
+
+		defer imageBuffer.Body.Close()
 	}
 
 	defer r.Body.Close()
 
-	if imageBuffer.StatusCode != 200 {
+	if imageBuffer.StatusCode != 200 && cachedHit == false {
 		http.NotFound(w, r)
 		return
 	}
 
-	finalImage, err := jpeg.Decode(imageBuffer.Body)
-	if err != nil {
-		formatError(err, w)
-		return
+	log.Printf("Status: %d", imageBuffer.StatusCode)
+
+	var finalImage image.Image
+	var err error
+
+	if (cachedHit == false) {
+		finalImage, _, err = image.Decode(imageBuffer.Body)
+		if (err != nil) {
+			_ = cache.Erase(originalImageKey)
+			_ = cache.Erase(key)
+			log.Printf("Error jpeg.decode")
+			formatError(err, w)
+			return
+		}
+	} else {
+		log.Printf("Get image from cache")
+		cachedImage, _ := cache.ReadStream(originalImageKey, true)
+		finalImage, _, _ = image.Decode(cachedImage)
 	}
 
 	// calculate aspect ratio
@@ -216,16 +217,28 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	imageResized := resize.Resize(size.Width, size.Height, finalImage, resize.NearestNeighbor)
-	contentType := imageBuffer.Header.Get("Content-Type")
+	var contentType string
+	if cachedHit {
+		contentType = "image/jpeg"
+	} else {
+		contentType = imageBuffer.Header.Get("Content-Type")
+	}
 
 	// store image to cache
 	buf := new(bytes.Buffer)
 	_ = jpeg.Encode(buf, imageResized, nil)
-
-	if err = cache.WriteStream(key, buf, true); err != nil {
+	if err := cache.WriteStream(key, buf, true); err != nil {
 		formatError(err, w)
 		return
 	}
+
+	originalBuf := new(bytes.Buffer)
+	_ = jpeg.Encode(originalBuf, finalImage, nil)
+	if err := cache.WriteStream(originalImageKey, originalBuf, true); err != nil {
+		formatError(err, w)
+		return
+	}
+
 
 	switch contentType {
 	case "image/png":
