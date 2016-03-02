@@ -222,6 +222,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
+		gettingFromCache := time.Now()
 		log.Printf("Get image from cache")
 		cachedImage, err := cache.ReadStream(originalImageKey, true)
 		if err != nil {
@@ -237,6 +238,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 			formatError(err, w)
 			return
 		}
+		log.Printf("Retrieving cache: %f s", time.Since(gettingFromCache).Seconds())
 	}
 
 	// calculate aspect ratio
@@ -254,7 +256,10 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		size.Width = width
 	}
 
+	resizing := time.Now()
 	imageResized := resize.Resize(size.Width, size.Height, finalImage, resize.NearestNeighbor)
+	log.Printf("Time resizing: %f s", time.Since(resizing).Seconds())
+
 	var contentType string
 	if cachedHit {
 		contentType = "image/jpeg"
@@ -272,14 +277,16 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	originalBuf := new(bytes.Buffer)
-	if err = jpeg.Encode(originalBuf, finalImage, nil); err != nil {
-		log.Printf("Error encoding")
-	}
+	if cachedHit == false {
+		originalBuf := new(bytes.Buffer)
+		if err = jpeg.Encode(originalBuf, finalImage, nil); err != nil {
+			log.Printf("Error encoding")
+		}
 
-	if err := cache.WriteStream(originalImageKey, originalBuf, true); err != nil {
-		formatError(err, w)
-		return
+		if err := cache.WriteStream(originalImageKey, originalBuf, true); err != nil {
+			formatError(err, w)
+			return
+		}
 	}
 
 	switch contentType {
