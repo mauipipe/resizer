@@ -244,16 +244,10 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	// calculate aspect ratio
 	if size.Width > 0 && size.Height > 0 {
 		b := finalImage.Bounds()
-		ratio := float32(b.Max.Y) / float32(b.Max.X)
-		width := uint(size.Width)
-		height := float32(width) * ratio
-		if uint(height) > size.Height {
-			height = float32(size.Height)
-			width = uint(float32(height) / ratio)
-		}
-
-		size.Height = uint(height)
-		size.Width = width
+		sizer := Sizer{size}
+		aspectedRatioSize := sizer.calculateAspectRatio(b.Max.Y, b.Max.X)
+		size.Width = aspectedRatioSize.Width
+		size.Height = aspectedRatioSize.Height
 	}
 
 	resizing := time.Now()
