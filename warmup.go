@@ -38,6 +38,7 @@ func warmUp(w http.ResponseWriter, r *http.Request) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
+
 	client := &http.Client{Transport: tr}
 	url := fmt.Sprintf("https://api-v2.hellofresh.com/recipes/dump?country=%s", country)
 	req, _ := http.NewRequest("GET", url, nil)

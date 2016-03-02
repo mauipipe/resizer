@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 	"os"
+	"runtime/debug"
 )
 
 const (
@@ -95,6 +96,21 @@ func getClient() *http.Client {
 	return client
 }
 
+const transformBlockSize = 5 // grouping of chars per directory depth
+
+func blockTransform(s string) []string {
+	var (
+		sliceSize = len(s) / transformBlockSize
+		pathSlice = make([]string, sliceSize)
+	)
+	for i := 0; i < sliceSize; i++ {
+		from, to := i*transformBlockSize, (i*transformBlockSize)+transformBlockSize
+		pathSlice[i] = s[from:to]
+	}
+
+	return pathSlice
+}
+
 func init() {
 	var cachePath string
 	cachePath = os.Getenv("RESIZER_CACHE_PATH")
@@ -104,10 +120,9 @@ func init() {
 
 	httpClient = getClient()
 	cacheStats = new(CacheStats)
-	flatTransform := func(s string) []string { return []string{} }
 	cache = diskv.New(diskv.Options{
 		BasePath:     cachePath,
-		Transform:    flatTransform,
+		Transform:    blockTransform,
 		CacheSizeMax: 1024 * 1024 * 1024,
 	})
 }
@@ -130,6 +145,7 @@ func extractIdFromUrl(url string) string {
 // Resizing endpoint.
 func resizing(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
+	start := time.Now()
 
 	// Get parameters
 	imageUrl := fmt.Sprintf("%s%s", config.ImageHost, params["path"])
@@ -201,13 +217,26 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 			_ = cache.Erase(originalImageKey)
 			_ = cache.Erase(key)
 			log.Printf("Error jpeg.decode")
+
 			formatError(err, w)
 			return
 		}
 	} else {
 		log.Printf("Get image from cache")
-		cachedImage, _ := cache.ReadStream(originalImageKey, true)
-		finalImage, _, _ = image.Decode(cachedImage)
+		cachedImage, err := cache.ReadStream(originalImageKey, true)
+		if err != nil {
+			log.Printf("Error reading stream %s", err)
+		}
+
+		finalImage, _, err = image.Decode(cachedImage)
+
+		if err != nil {
+			log.Printf("Error decoding from cache %s", err)
+			_ = cache.Erase(originalImageKey)
+
+			formatError(err, w)
+			return
+		}
 	}
 
 	// calculate aspect ratio
@@ -244,7 +273,10 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	originalBuf := new(bytes.Buffer)
-	_ = jpeg.Encode(originalBuf, finalImage, nil)
+	if err = jpeg.Encode(originalBuf, finalImage, nil); err != nil {
+		log.Printf("Error encoding")
+	}
+
 	if err := cache.WriteStream(originalImageKey, originalBuf, true); err != nil {
 		formatError(err, w)
 		return
@@ -253,16 +285,20 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	switch contentType {
 	case "image/png":
 		png.Encode(w, imageResized)
-		log.Printf("Successfully handled content type '%s'\n", contentType)
+		log.Printf("Successfully handled content type '%s Delivered in %f s'\n", contentType, time.Since(start).Seconds())
 	case "image/jpeg":
 		jpeg.Encode(w, imageResized, nil)
-		log.Printf("Successfully handled content type '%s'\n", contentType)
+		log.Printf("Successfully handled content type '%s'  Delivered in %f s\n", contentType, time.Since(start).Seconds())
 	case "binary/octet-stream":
 		jpeg.Encode(w, imageResized, nil)
-		log.Printf("Successfully handled content type '%s'\n", contentType)
+		log.Printf("Successfully handled content type '%s'  Delivered in %f s\n", contentType, time.Since(start).Seconds())
 	default:
-		log.Printf("Cannot handle content type '%s'\n", contentType)
+		log.Printf("Cannot handle content type '%s'  Delivered in %f s\n", contentType, time.Since(start).Seconds())
 	}
+
+	// free memory
+	debug.FreeOSMemory()
+
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
@@ -282,7 +318,7 @@ func purgeCache(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	runtime.GOMAXPROCS(3)
 	// Load configuration
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
@@ -303,6 +339,8 @@ func main() {
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port),
 		Handler: rtr,
+		ReadTimeout: 3 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
 
 	server.ListenAndServe()
