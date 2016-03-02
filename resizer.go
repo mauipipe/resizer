@@ -5,32 +5,22 @@ import (
 	"fmt"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/nfnt/resize"
-	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/peterbourgon/diskv"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/spf13/viper"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"log"
 	"net/http"
-	"path"
 	"runtime"
-	"strconv"
-	"strings"
 	"time"
-	"os"
 	"runtime/debug"
 )
 
-const (
-	MaxIdleConnections int = 50
-	RequestTimeout     int = 5
-)
-
 var (
-	httpClient *http.Client
-	config     *Configuration
-	cache      *diskv.Diskv
-	cacheStats *CacheStats
+	httpClient 		*http.Client
+	config     		*Configuration
+	cacheStats 		*CacheStats
+    cacheProvider 	= SetCacheProvider()
 )
 
 type Configuration struct {
@@ -58,73 +48,9 @@ type CacheStats struct {
 	Misses uint64
 }
 
-// Return a given error in JSON format to the ResponseWriter
-func formatError(err error, w http.ResponseWriter) {
-	http.Error(w, fmt.Sprintf("{ \"error\": \"%s\"}", err), 400)
-}
-
-// Parse a given string into a uint value
-func parseInteger(value string) (uint, error) {
-	integer, err := strconv.Atoi(value)
-	return uint(integer), err
-}
-
-func GetImageSize(imageSize string, config *Configuration) *Size {
-	size := new(Size)
-
-	for _, placeholder := range config.Placeholders {
-		if placeholder.Name == imageSize {
-			return placeholder.Size
-		}
-	}
-
-	// If we didn't found the placeholder then we split the size
-	parts := strings.Split(imageSize, ",")
-	if len(parts) == 2 {
-		size.Width, _ = parseInteger(parts[0])
-		size.Height, _ = parseInteger(parts[1])
-	}
-
-	return size
-}
-
-func getClient() *http.Client {
-	client := &http.Client{
-		Timeout: time.Duration(RequestTimeout) * time.Second,
-	}
-
-	return client
-}
-
-const transformBlockSize = 5 // grouping of chars per directory depth
-
-func blockTransform(s string) []string {
-	var (
-		sliceSize = len(s) / transformBlockSize
-		pathSlice = make([]string, sliceSize)
-	)
-	for i := 0; i < sliceSize; i++ {
-		from, to := i*transformBlockSize, (i*transformBlockSize)+transformBlockSize
-		pathSlice[i] = s[from:to]
-	}
-
-	return pathSlice
-}
-
 func init() {
-	var cachePath string
-	cachePath = os.Getenv("RESIZER_CACHE_PATH")
-	if cachePath == "" {
-		cachePath = "/tmp"
-	}
-
-	httpClient = getClient()
+	httpClient = GetClient()
 	cacheStats = new(CacheStats)
-	cache = diskv.New(diskv.Options{
-		BasePath:     cachePath,
-		Transform:    blockTransform,
-		CacheSizeMax: 1024 * 1024 * 1024,
-	})
 }
 
 func (self *CacheStats) hit() {
@@ -133,13 +59,6 @@ func (self *CacheStats) hit() {
 
 func (self *CacheStats) miss() {
 	self.Misses++
-}
-
-func extractIdFromUrl(url string) string {
-	i, j := strings.LastIndex(url, "/"), strings.LastIndex(url, path.Ext(url))
-	name := url[i+1 : j]
-
-	return name
 }
 
 // Resizing endpoint.
@@ -153,19 +72,19 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	validator := Validator{config}
 
 	if err := validator.CheckRequestNewSize(size); err != nil {
-		formatError(err, w)
+		FormatError(err, w)
 		return
 	}
 
 	// Build caching key
-	imageId := extractIdFromUrl(imageUrl)
+	imageId := ExtractIdFromUrl(imageUrl)
 	key := fmt.Sprintf("%d_%d_%s", size.Height, size.Width, imageId)
 	log.Printf("Caching key %s", key)
 
-	if config.Cachethumbnails && cache.Has(key) {
+	if config.Cachethumbnails && cacheProvider.Contains(key) {
 		log.Printf("Cached hit!")
 		cacheStats.hit()
-		cachedImage, _ := cache.ReadStream(key, true)
+		cachedImage, _ := cacheProvider.Get(key)
 		finalImage, _, _ := image.Decode(cachedImage)
 		jpeg.Encode(w, finalImage, nil)
 		return
@@ -181,7 +100,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	imageBuffer := new(http.Response)
 	var cachedHit bool
 
-	if cache.Has(originalImageKey) {
+	if cacheProvider.Contains(originalImageKey) {
 		cacheStats.hit()
 		cachedHit = true
 	} else {
@@ -192,7 +111,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		imageBuffer, err = httpClient.Get(imageUrl)
 
 		if err != nil {
-			formatError(err, w)
+			FormatError(err, w)
 			return
 		}
 
@@ -214,17 +133,17 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	if cachedHit == false {
 		finalImage, _, err = image.Decode(imageBuffer.Body)
 		if err != nil {
-			_ = cache.Erase(originalImageKey)
-			_ = cache.Erase(key)
+			_ = cacheProvider.Delete(originalImageKey)
+			_ = cacheProvider.Delete(key)
 			log.Printf("Error jpeg.decode")
 
-			formatError(err, w)
+			FormatError(err, w)
 			return
 		}
 	} else {
 		gettingFromCache := time.Now()
 		log.Printf("Get image from cache")
-		cachedImage, err := cache.ReadStream(originalImageKey, true)
+		cachedImage, err := cacheProvider.Get(originalImageKey)
 		if err != nil {
 			log.Printf("Error reading stream %s", err)
 		}
@@ -233,9 +152,9 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			log.Printf("Error decoding from cache %s", err)
-			_ = cache.Erase(originalImageKey)
+			_ = cacheProvider.Delete(originalImageKey)
 
-			formatError(err, w)
+			FormatError(err, w)
 			return
 		}
 		log.Printf("Retrieving cache: %f s", time.Since(gettingFromCache).Seconds())
@@ -265,8 +184,8 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	if config.Cachethumbnails {
 		buf := new(bytes.Buffer)
 		_ = jpeg.Encode(buf, imageResized, nil)
-		if err := cache.WriteStream(key, buf, true); err != nil {
-			formatError(err, w)
+		if err := cacheProvider.Set(key, buf); err != nil {
+			FormatError(err, w)
 			return
 		}
 	}
@@ -277,8 +196,8 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error encoding")
 		}
 
-		if err := cache.WriteStream(originalImageKey, originalBuf, true); err != nil {
-			formatError(err, w)
+		if err := cacheProvider.Set(originalImageKey, originalBuf); err != nil {
+			FormatError(err, w)
 			return
 		}
 	}
@@ -308,10 +227,10 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func purgeCache(w http.ResponseWriter, r *http.Request) {
-	err := cache.EraseAll()
+	err := cacheProvider.DeleteAll()
 
 	if err != nil {
-		formatError(err, w)
+		FormatError(err, w)
 		return
 	}
 

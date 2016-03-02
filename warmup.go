@@ -26,7 +26,7 @@ func warmUp(w http.ResponseWriter, r *http.Request) {
 	server = os.Getenv("RESIZER_ENDPOINT")
 	log.Printf("%s", server)
 	if server == "" {
-		formatError(fmt.Errorf("Not host defined"), w)
+		FormatError(fmt.Errorf("Not host defined"), w)
 		return
 	}
 
@@ -50,12 +50,12 @@ func warmUp(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if err != nil {
-		formatError(err, w)
+		FormatError(err, w)
 		return
 	}
 
 	if res.StatusCode == 401 {
-		formatError(fmt.Errorf("Not allowed"), w)
+		FormatError(fmt.Errorf("Not allowed"), w)
 		return
 	}
 
@@ -64,7 +64,7 @@ func warmUp(w http.ResponseWriter, r *http.Request) {
 	err = decoder.Decode(&collection)
 
 	if err != nil {
-		formatError(err, w)
+		FormatError(err, w)
 		return
 	}
 
