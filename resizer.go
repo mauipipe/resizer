@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/gorilla/mux"
-	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/nfnt/resize"
+	//"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/nfnt/resize"
+	"github.com/daddye/trez"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/peterbourgon/diskv"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/spf13/viper"
 	"image"
@@ -222,6 +223,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
+		getCache := time.Now()
 		log.Printf("Get image from cache")
 		cachedImage, err := cache.ReadStream(originalImageKey, true)
 		if err != nil {
@@ -237,6 +239,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 			formatError(err, w)
 			return
 		}
+		log.Printf("Getting from cache: %f s", time.Since(getCache).Seconds())
 	}
 
 	// calculate aspect ratio
@@ -254,7 +257,20 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		size.Width = width
 	}
 
-	imageResized := resize.Resize(size.Width, size.Height, finalImage, resize.NearestNeighbor)
+	resizing := time.Now()
+	buf := new(bytes.Buffer)
+	_ = jpeg.Encode(buf, finalImage, nil)
+	options := trez.Options{
+		Width: int(size.Width),
+		Height: int(size.Height),
+		Quality: 75,
+		Algo: trez.FIT,
+	}
+	imageResized, _ := trez.Resize(buf.Bytes(), options)
+	imageCreated, _ := jpeg.Decode(bytes.NewReader(imageResized))
+	log.Printf("Resizing done in %f s", time.Since(resizing).Seconds())
+
+
 	var contentType string
 	if cachedHit {
 		contentType = "image/jpeg"
@@ -263,34 +279,34 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// store image to cache
-	if config.Cachethumbnails {
-		buf := new(bytes.Buffer)
-		_ = jpeg.Encode(buf, imageResized, nil)
-		if err := cache.WriteStream(key, buf, true); err != nil {
+//	if config.Cachethumbnails {
+//		if err := cache.WriteStream(key, imageResized, true); err != nil {
+//			formatError(err, w)
+//			return
+//		}
+//	}
+
+	if cachedHit == false {
+		originalBuf := new(bytes.Buffer)
+		if err = jpeg.Encode(originalBuf, finalImage, nil); err != nil {
+			log.Printf("Error encoding")
+		}
+
+		if err := cache.WriteStream(originalImageKey, originalBuf, true); err != nil {
 			formatError(err, w)
 			return
 		}
 	}
 
-	originalBuf := new(bytes.Buffer)
-	if err = jpeg.Encode(originalBuf, finalImage, nil); err != nil {
-		log.Printf("Error encoding")
-	}
-
-	if err := cache.WriteStream(originalImageKey, originalBuf, true); err != nil {
-		formatError(err, w)
-		return
-	}
-
 	switch contentType {
 	case "image/png":
-		png.Encode(w, imageResized)
+		png.Encode(w, imageCreated)
 		log.Printf("Successfully handled content type '%s Delivered in %f s'\n", contentType, time.Since(start).Seconds())
 	case "image/jpeg":
-		jpeg.Encode(w, imageResized, nil)
+		jpeg.Encode(w, imageCreated, nil)
 		log.Printf("Successfully handled content type '%s'  Delivered in %f s\n", contentType, time.Since(start).Seconds())
 	case "binary/octet-stream":
-		jpeg.Encode(w, imageResized, nil)
+		jpeg.Encode(w, imageCreated, nil)
 		log.Printf("Successfully handled content type '%s'  Delivered in %f s\n", contentType, time.Since(start).Seconds())
 	default:
 		log.Printf("Cannot handle content type '%s'  Delivered in %f s\n", contentType, time.Since(start).Seconds())
