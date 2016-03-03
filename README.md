@@ -1,4 +1,4 @@
-# resizer [![Build Status](https://travis-ci.org/hellofresh/resizer.svg?branch=master)](https://travis-ci.org/hellofresh/resizer)
+# resizer [![Build Status](https://travis-ci.org/hellofresh/resizer.svg?branch=master)](https://travis-ci.org/hellofresh/resizer) [![Docker Repository on Quay](https://quay.io/repository/hellofresh/resizer/status "Docker Repository on Quay")](https://quay.io/repository/hellofresh/resizer)
 
 #### What is this?
 
