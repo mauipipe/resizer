@@ -97,6 +97,12 @@ This service relies on top of some great packages like:
 - https://github.com/nfnt/resize
 - https://github.com/gorilla/mux
 
+#### Run with Docker
+
+		$ export PRIVATE_IP=$(/sbin/ifconfig eth0 | grep 'inet addr' | cut -d: -f2 | awk '{print $1}')
+		$ sudo docker-compose pull && sudo docker-compose up -d
+		$ sudo docker logs -f resizer
+
 #### TODO
 
 - [x] Resize a given image with width/height parameters
