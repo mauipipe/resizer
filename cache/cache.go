@@ -32,7 +32,7 @@ var lruCache 	*lru.Cache
 var cacheStats 	*CacheStats
 
 func init() {
-	lruCache, _ = lru.New(3)
+	lruCache, _ = lru.New(2048)
 	cacheStats = new(CacheStats)
 }
 
