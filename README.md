@@ -1,26 +1,22 @@
 # resizer [![Build Status](https://travis-ci.org/hellofresh/resizer.svg?branch=master)](https://travis-ci.org/hellofresh/resizer)
 
-This is a naive approach to build an image resizing service. At the moment given few parameters the system returns the image resized.
+#### What is this?
 
-At the moment this service supports those versions of Go:
+This is a microservice to help you to resize images on the fly. This can been built in order to scale and support a high load traffic and peaks.
 
-- 1.3
-- 1.4
-- latest stable version
+#### Architecture
 
-#### How it works?
+![Architecture graph](http://i.imgur.com/0vwpNJd.png)
 
-By now it listen automatically to port 8080 by default (this should be changed in the near future). 
+This graph basically represents our infrastacture in order to store images.
 
-Resizing endpoint:
+Every time we request a new image it's done first of all through Amazon CloudFront. If ACF already has a copy of that image then we are done.
 
-GET host:8080/resize/[size]/[s3_path]
+If ACF doesn't have a copy then the Resizer service is called. This service will try to find the image first of all in it's own cache layer (at the moment 1GB of disk space). If the image exists there it's resized and deliver to ACF.
 
-**Parameters**:
-- **size**: Here you can specify a placeholder (like web) or a size like 200,203
-- **s3_path**: The path where we can find that image in our amazon s3 buckets
+If the image doesn't exists on it's cache layer the image is downloaded from Amazon S3. After that the image is resized and we store the original image size to the cache.
 
-Currently we are respecting the aspect ratio of the original image. That means size will not be for example 200,203.
+In this way we are reducing the amount of calls to Amazon and we can deliver images between 0.1 and 1 second (depending on load and size).
 
 #### Configuration
 
