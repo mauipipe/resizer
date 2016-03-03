@@ -262,8 +262,8 @@ func main() {
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port),
 		Handler: rtr,
-//		ReadTimeout: 3 * time.Second,
-//		WriteTimeout: 10 * time.Second,
+		ReadTimeout: 3 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
 
 	server.ListenAndServe()
