@@ -81,6 +81,14 @@ This endpoints returns a 200 http code and a json payload if everything is alrig
 }
 ```
 
+#### Testing
+
+At the moment this service lacks lot of tests in many places.
+
+##### Load testing
+
+We used [Siege](https://www.joedog.org/siege-home/) as a tool to test the performance of this service.
+
 #### Dependencies
 
 This service relies on top of some great packages like:
