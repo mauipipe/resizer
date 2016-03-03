@@ -9,7 +9,6 @@ import (
 	"image"
 	"image/png"
 	"image/jpeg"
-	"log"
 )
 
 type CacheStats struct {
