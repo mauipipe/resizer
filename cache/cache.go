@@ -1,8 +1,9 @@
 package cache
+
 import (
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/peterbourgon/diskv"
 	"io"
-	"github.com/hashicorp/golang-lru"
+	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/hashicorp/golang-lru"
 	"io/ioutil"
 	"bytes"
 	"image"
