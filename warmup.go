@@ -10,9 +10,14 @@ import (
 	"net/url"
 )
 
+type Ingredient struct {
+	ImageLink string
+}
+
 type Recipe struct {
 	Id string
 	Imagelink string
+	Ingredients []Ingredient
 }
 
 type Collection struct {
@@ -79,6 +84,15 @@ func warmUp(w http.ResponseWriter, r *http.Request) {
 		log.Printf("t: %s", timestamp)
 
 		downloadImage(collection.Items[i].Id, server, timestamp)
+
+		// ingredients too
+		for _, ingredient := range collection.Items[i].Ingredients {
+			ingredientId := ExtractIdFromUrl(ingredient.ImageLink)
+			if ingredientId != "" {
+				ingredientUrl := fmt.Sprintf("%s/image/%s.png", "200,200", ingredientId)
+				downloadIngredients(ingredientUrl, server)
+			}
+		}
 	}
 
 	log.Printf("Warmup done for %s", country)
@@ -98,4 +112,16 @@ func downloadImage(id string, server string, timestamp string) {
 
 		defer res.Body.Close()
 	}
+}
+
+func downloadIngredients (imageLink string, server string) {
+	imageUrl := fmt.Sprintf("%s/%s", server, imageLink)
+
+	res, _ := http.Get(imageUrl)
+
+	if res.StatusCode == 200 {
+		log.Printf("Ingredients saved: %s", imageUrl)
+	}
+
+	defer res.Body.Close()
 }
