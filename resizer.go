@@ -192,6 +192,9 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		fromWhere = "network"
 	}
 
+	// set expiration time
+	w.Header().Set("Cache-Control", "max-age=86400")
+
 	switch extension {
 	case "png":
 		png.Encode(w, imageResized)
