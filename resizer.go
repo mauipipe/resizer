@@ -185,6 +185,8 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 func healthCheck(w http.ResponseWriter, r *http.Request) {
 	var totalSize float32
 
+	w.Header().Add("Content-Type", "application/json")
+
 	dirSize, err := DirSize(os.Getenv("RESIZER_CACHE_PATH"))
 
 	if dirSize > 0 {
