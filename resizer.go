@@ -55,6 +55,8 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	// Get parameters
 	imageUrl := fmt.Sprintf("%s%s", config.ImageHost, params["path"])
 	size := GetImageSize(params["size"], config)
+	timestamp := r.URL.Query().Get("t")
+
 	validator := Validator{config}
 
 	if err := validator.CheckRequestNewSize(size); err != nil {
@@ -64,7 +66,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 
 	// Build caching key
 	imageId := ExtractIdFromUrl(imageUrl)
-	key := fmt.Sprintf("%d_%d_%s", size.Height, size.Width, imageId)
+	key := fmt.Sprintf("%s_%s_%d_%d", imageId, timestamp, size.Height, size.Width)
 
 	if config.Cachethumbnails && cacheProvider.Contains(key) {
 		finalImage, _ := cacheProvider.Get(key)
@@ -73,7 +75,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Download the image
-	originalImageKey := fmt.Sprintf("original_%s", imageId)
+	originalImageKey := fmt.Sprintf("%s_%s_original", imageId, timestamp)
 
 	imageBuffer := new(http.Response)
 	var cachedHit bool
@@ -82,8 +84,8 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		cachedHit = true
 	} else {
 		cachedHit = false
-		log.Printf("Downloading image")
 		var err error
+
 		imageBuffer, err = httpClient.Get(imageUrl)
 
 		if err != nil {
@@ -163,18 +165,25 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var fromWhere string
+	if cachedHit {
+		fromWhere = "cache"
+	} else {
+		fromWhere = "network"
+	}
+
 	switch contentType {
 	case "image/png":
 		png.Encode(w, imageResized)
-		log.Printf("Successfully handled content type '%s Delivered in %f s'\n", contentType, time.Since(start).Seconds())
+		log.Printf("[%s] Successfully handled content type '%s Delivered in %f s'\n", fromWhere, contentType, time.Since(start).Seconds())
 	case "image/jpeg":
 		jpeg.Encode(w, imageResized, nil)
-		log.Printf("Successfully handled content type '%s'  Delivered in %f s\n", contentType, time.Since(start).Seconds())
+		log.Printf("[%s] Successfully handled content type '%s'  Delivered in %f s\n", fromWhere, contentType, time.Since(start).Seconds())
 	case "binary/octet-stream":
 		jpeg.Encode(w, imageResized, nil)
-		log.Printf("Successfully handled content type '%s'  Delivered in %f s\n", contentType, time.Since(start).Seconds())
+		log.Printf("[%s] Successfully handled content type '%s'  Delivered in %f s\n", fromWhere, contentType, time.Since(start).Seconds())
 	default:
-		log.Printf("Cannot handle content type '%s'  Delivered in %f s\n", contentType, time.Since(start).Seconds())
+		log.Printf("[%s ]Cannot handle content type '%s'  Delivered in %f s\n", fromWhere, contentType, time.Since(start).Seconds())
 	}
 
 	// free memory
