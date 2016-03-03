@@ -56,6 +56,31 @@ For example you can do something like this:
 
 The previous example show you how to allow any something.supercdn.com host.
 
+#### Endpoints
+
+##### Health Status & Stats
+
+This endpoints returns a 200 http code and a json payload if everything is alright. The payload looks like this:
+
+```json
+{
+	"status": "ok",
+	"cache": [{
+		"file_cache": {
+			"hits": 193,
+			"misses": 96
+		}
+	}, {
+		"lru_cache": {
+			"hits": 5382,
+			"misses": 40,
+			"size": 38
+		}
+	}],
+	"used_space": "4.017240 Mb"
+}
+```
+
 #### Dependencies
 
 This service relies on top of some great packages like:
