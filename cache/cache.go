@@ -9,6 +9,7 @@ import (
 	"image"
 	"image/png"
 	"image/jpeg"
+	"log"
 )
 
 type CacheStats struct {
@@ -32,7 +33,7 @@ var lruCache 	*lru.Cache
 var cacheStats 	*CacheStats
 
 func init() {
-	lruCache, _ = lru.New(1024)
+	lruCache, _ = lru.New(3)
 	cacheStats = new(CacheStats)
 }
 
