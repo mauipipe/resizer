@@ -203,6 +203,8 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[%s ]Cannot handle content type '%s'  Delivered in %f s\n", fromWhere, contentType, time.Since(start).Seconds())
 	}
 
+	log.Printf("[%s] id: %s width: %d height: %d givenSize: %s", fromWhere, imageId, size.Width, size.Height, params["size"])
+
 	// free memory
 	debug.FreeOSMemory()
 
@@ -262,8 +264,8 @@ func main() {
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port),
 		Handler: rtr,
-		ReadTimeout: 3 * time.Second,
-		WriteTimeout: 10 * time.Second,
+//		ReadTimeout: 3 * time.Second,
+//		WriteTimeout: 10 * time.Second,
 	}
 
 	server.ListenAndServe()
