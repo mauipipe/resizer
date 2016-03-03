@@ -12,6 +12,7 @@ import (
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/peterbourgon/diskv"
 	"path/filepath"
 	"net/url"
+	"log"
 )
 
 const (
@@ -109,7 +110,8 @@ func FormatError(err error, w http.ResponseWriter) {
 
 // Parse a given string into a uint value
 func parseInteger(value string) (uint, error) {
-	integer, err := strconv.Atoi(value)
+	integer, err := strconv.ParseFloat(value, 64)
+	log.Printf("%d", uint(integer))
 	return uint(integer), err
 }
 
