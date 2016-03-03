@@ -1,11 +1,10 @@
 version: "2"
 services:
   resizer:
-    build: .
     ports:
      # Put into /etc/profile on the Docker host: export PRIVATE_IP=$(/sbin/ifconfig eth0 | grep 'inet addr' | cut -d: -f2 | awk '{print $1}')
      - "${PRIVATE_IP}:80:8080"
-    image: "my/resizer:latest"
+    image: "quay.io/hellofresh/resizer:latest"
     restart: always
     container_name: resizer
     environment:
