@@ -7,10 +7,17 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"os"
+	"net/url"
 )
+
+type Ingredient struct {
+	ImageLink string
+}
 
 type Recipe struct {
 	Id string
+	Imagelink string
+	Ingredients []Ingredient
 }
 
 type Collection struct {
@@ -40,8 +47,8 @@ func warmUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &http.Client{Transport: tr}
-	url := fmt.Sprintf("https://api-v2.hellofresh.com/recipes/dump?country=%s", country)
-	req, _ := http.NewRequest("GET", url, nil)
+	urlRequest := fmt.Sprintf("https://api-v2.hellofresh.com/recipes/dump?country=%s", country)
+	req, _ := http.NewRequest("GET", urlRequest, nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	res, err := client.Do(req)
@@ -72,7 +79,20 @@ func warmUp(w http.ResponseWriter, r *http.Request) {
 
 	for i:= 0; i <= 99; i++ {
 		log.Printf("Recipe: %s", collection.Items[i].Id)
-		downloadImage(collection.Items[i].Id, server)
+		parseUrl, _ := url.Parse(collection.Items[i].Imagelink)
+		timestamp := parseUrl.Query().Get("t")
+		log.Printf("t: %s", timestamp)
+
+		downloadImage(collection.Items[i].Id, server, timestamp)
+
+		// ingredients too
+		for _, ingredient := range collection.Items[i].Ingredients {
+			ingredientId := ExtractIdFromUrl(ingredient.ImageLink)
+			if ingredientId != "" {
+				ingredientUrl := fmt.Sprintf("%s/image/%s.png", "200,200", ingredientId)
+				downloadIngredients(ingredientUrl, server)
+			}
+		}
 	}
 
 	log.Printf("Warmup done for %s", country)
@@ -80,10 +100,10 @@ func warmUp(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Done!")
 }
 
-func downloadImage(id string, server string) {
+func downloadImage(id string, server string, timestamp string) {
 	// we can then warmup those images
 	for _, size := range config.Warmupsizes {
-		imageUrl := fmt.Sprintf("%s/%d,%d/image/%s.jpg", server, size.Width, size.Height, id)
+		imageUrl := fmt.Sprintf("%s/%d,%d/image/%s.jpg?t=%s", server, size.Width, size.Height, id, timestamp)
 		res, _ := http.Get(imageUrl)
 
 		if res.StatusCode == 200 {
@@ -92,4 +112,16 @@ func downloadImage(id string, server string) {
 
 		defer res.Body.Close()
 	}
+}
+
+func downloadIngredients (imageLink string, server string) {
+	imageUrl := fmt.Sprintf("%s/%s", server, imageLink)
+
+	res, _ := http.Get(imageUrl)
+
+	if res.StatusCode == 200 {
+		log.Printf("Ingredients saved: %s", imageUrl)
+	}
+
+	defer res.Body.Close()
 }

@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"bytes"
 	"image"
+	"image/png"
+	"image/jpeg"
 )
 
 type CacheStats struct {
@@ -65,7 +67,7 @@ func (self *CacheProvider) Contains(key string) bool {
 }
 
 // Get the content from a cache key
-func (self *CacheProvider ) Get(key string) (image.Image, error) {
+func (self *CacheProvider ) Get(key string, extension string) (image.Image, error) {
 	if self.LruCache.Enabled && lruCache.Contains(key) {
 		buffer, found := lruCache.Get(key)
 		bufferInBytes := buffer.([]byte)
@@ -73,7 +75,14 @@ func (self *CacheProvider ) Get(key string) (image.Image, error) {
 		if found {
 			cacheStats.hitLru()
 			reader := ioutil.NopCloser(bytes.NewReader(bufferInBytes))
-			decodedImage, _, err := image.Decode(reader)
+			var decodedImage image.Image
+			var err error
+
+			if extension == "png" {
+				decodedImage, err = png.Decode(reader)
+			} else {
+				decodedImage, err = jpeg.Decode(reader)
+			}
 
 			if err != nil {
 				self.Delete(key)
@@ -86,7 +95,16 @@ func (self *CacheProvider ) Get(key string) (image.Image, error) {
 	cacheStats.hitFileCache()
 
 	reader, err := self.CacheAdapter.ReadStream(key, true)
-	decodedImage, _, err := image.Decode(reader)
+
+	var decodedImage image.Image
+
+	if extension == "png" {
+		decodedImage, err = png.Decode(reader)
+	}
+
+	if extension == "jpg" {
+		decodedImage, err = jpeg.Decode(reader)
+	}
 
 	if err != nil {
 		self.Delete(key)
