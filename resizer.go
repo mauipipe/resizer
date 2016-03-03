@@ -14,12 +14,12 @@ import (
 	"runtime"
 	"time"
 	"runtime/debug"
+	"os"
 )
 
 var (
 	httpClient 		*http.Client
 	config     		*Configuration
-	cacheStats 		*CacheStats
     cacheProvider 	= SetCacheProvider()
 )
 
@@ -43,22 +43,8 @@ type Size struct {
 	Height uint
 }
 
-type CacheStats struct {
-	Hits   uint64
-	Misses uint64
-}
-
 func init() {
 	httpClient = GetClient()
-	cacheStats = new(CacheStats)
-}
-
-func (self *CacheStats) hit() {
-	self.Hits++
-}
-
-func (self *CacheStats) miss() {
-	self.Misses++
 }
 
 // Resizing endpoint.
@@ -79,19 +65,11 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	// Build caching key
 	imageId := ExtractIdFromUrl(imageUrl)
 	key := fmt.Sprintf("%d_%d_%s", size.Height, size.Width, imageId)
-	log.Printf("Caching key %s", key)
 
 	if config.Cachethumbnails && cacheProvider.Contains(key) {
-		log.Printf("Cached hit!")
-		cacheStats.hit()
-		cachedImage, _ := cacheProvider.Get(key)
-		finalImage, _, _ := image.Decode(cachedImage)
+		finalImage, _ := cacheProvider.Get(key)
 		jpeg.Encode(w, finalImage, nil)
 		return
-	} else {
-		if config.Cachethumbnails {
-			cacheStats.miss()
-		}
 	}
 
 	// Download the image
@@ -101,11 +79,9 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	var cachedHit bool
 
 	if cacheProvider.Contains(originalImageKey) {
-		cacheStats.hit()
 		cachedHit = true
 	} else {
 		cachedHit = false
-		cacheStats.miss()
 		log.Printf("Downloading image")
 		var err error
 		imageBuffer, err = httpClient.Get(imageUrl)
@@ -125,8 +101,6 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Status: %d", imageBuffer.StatusCode)
-
 	var finalImage image.Image
 	var err error
 
@@ -141,23 +115,12 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		gettingFromCache := time.Now()
-		log.Printf("Get image from cache")
-		cachedImage, err := cacheProvider.Get(originalImageKey)
+		var err error
+		finalImage, err = cacheProvider.Get(originalImageKey)
+
 		if err != nil {
 			log.Printf("Error reading stream %s", err)
 		}
-
-		finalImage, _, err = image.Decode(cachedImage)
-
-		if err != nil {
-			log.Printf("Error decoding from cache %s", err)
-			_ = cacheProvider.Delete(originalImageKey)
-
-			FormatError(err, w)
-			return
-		}
-		log.Printf("Retrieving cache: %f s", time.Since(gettingFromCache).Seconds())
 	}
 
 	// calculate aspect ratio
@@ -169,9 +132,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		size.Height = aspectedRatioSize.Height
 	}
 
-	resizing := time.Now()
 	imageResized := resize.Resize(size.Width, size.Height, finalImage, resize.NearestNeighbor)
-	log.Printf("Time resizing: %f s", time.Since(resizing).Seconds())
 
 	var contentType string
 	if cachedHit {
@@ -222,7 +183,21 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
-	response := fmt.Sprintf("{\"status\": \"ok\",\"cache\": {\"hits\": %d,\"misses\": %d}}", cacheStats.Hits, cacheStats.Misses)
+	var totalSize float32
+
+	dirSize, err := DirSize(os.Getenv("RESIZER_CACHE_PATH"))
+
+	if dirSize > 0 {
+		totalSize = float32(dirSize) / 1048576
+	}
+
+	if err != nil {
+		totalSize = 0.0
+	}
+
+	stats, lruSize := cacheProvider.GetStats()
+
+	response := fmt.Sprintf("{\"status\": \"ok\",\"cache\": [{\"file_cache\": {\"hits\": %d,\"misses\": %d}}, {\"lru_cache\": {\"hits\": %d,\"misses\": %d, \"size\": %d}}], \"used_space\": \"%f Mb\"}", stats.FileCacheHits, stats.FileCacheMisses, stats.LruCacheHits, stats.LruCacheMisses, lruSize, totalSize)
 	fmt.Fprint(w, response)
 }
 

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strconv"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/peterbourgon/diskv"
+	"path/filepath"
 )
 
 const (
@@ -33,7 +34,13 @@ func SetCacheProvider() cache.CacheProvider {
 		CacheSizeMax: 1024 * 1024 * 1024,
 	})
 
-	return cache.CacheProvider{cacheAdapter}
+	return cache.CacheProvider{
+		CacheAdapter: cacheAdapter,
+		LruCache: cache.LruCacheConfiguration{
+			Enabled: true,
+			Size: 128,
+		},
+	}
 }
 
 // Used in the cache provider to build the folder structure
@@ -91,4 +98,23 @@ func FormatError(err error, w http.ResponseWriter) {
 func parseInteger(value string) (uint, error) {
 	integer, err := strconv.Atoi(value)
 	return uint(integer), err
+}
+
+// Returns size of given path
+func DirSize(path string) (int64, error) {
+	var size int64
+
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+	}
+
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return err
+	})
+	return size, err
 }
