@@ -6,7 +6,7 @@ This is a microservice to help you to resize images on the fly. This can been bu
 
 #### Architecture
 
-![Architecture graph](http://i.imgur.com/cYaFTwq.png)
+![Architecture graph](http://i.imgur.com/DuNsGEi.png)
 
 This graph basically represents our infrastacture in order to store images.
 
