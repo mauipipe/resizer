@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/peterbourgon/diskv"
 	"path/filepath"
+	"net/url"
 )
 
 const (
@@ -56,6 +57,18 @@ func blockTransform(s string) []string {
 	}
 
 	return pathSlice
+}
+
+// Return image
+func GetExtension(givenUrl string) string {
+	urlParsed, _ := url.Parse(givenUrl)
+	parts := strings.Split(urlParsed.Path, ".")
+
+	if parts[1] != "" {
+		return parts[1]
+	}
+
+	return "jpeg"
 }
 
 // Given an image calculates the size

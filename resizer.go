@@ -56,6 +56,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	imageUrl := fmt.Sprintf("%s%s", config.ImageHost, params["path"])
 	size := GetImageSize(params["size"], config)
 	timestamp := r.URL.Query().Get("t")
+	extension := GetExtension(imageUrl)
 
 	validator := Validator{config}
 
@@ -69,7 +70,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	key := fmt.Sprintf("%s_%s_%d_%d", imageId, timestamp, size.Height, size.Width)
 
 	if config.Cachethumbnails && cacheProvider.Contains(key) {
-		finalImage, _ := cacheProvider.Get(key)
+		finalImage, _ := cacheProvider.Get(key, extension)
 		jpeg.Encode(w, finalImage, nil)
 		return
 	}
@@ -107,7 +108,14 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if cachedHit == false {
-		finalImage, _, err = image.Decode(imageBuffer.Body)
+		if extension == "png" {
+			finalImage, err = png.Decode(imageBuffer.Body)
+		}
+
+		if extension == "jpg" {
+			finalImage, err = jpeg.Decode(imageBuffer.Body)
+		}
+
 		if err != nil {
 			_ = cacheProvider.Delete(originalImageKey)
 			_ = cacheProvider.Delete(key)
@@ -118,7 +126,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		var err error
-		finalImage, err = cacheProvider.Get(originalImageKey)
+		finalImage, err = cacheProvider.Get(originalImageKey, extension)
 
 		if err != nil {
 			log.Printf("Error reading stream %s", err)
@@ -155,8 +163,17 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 
 	if cachedHit == false {
 		originalBuf := new(bytes.Buffer)
-		if err = jpeg.Encode(originalBuf, finalImage, nil); err != nil {
-			log.Printf("Error encoding")
+
+		if extension == "png" {
+			if err = png.Encode(originalBuf, finalImage); err != nil {
+				log.Printf("Error encoding")
+			}
+		}
+
+		if extension == "jpg" {
+			if err = jpeg.Encode(originalBuf, finalImage, nil); err != nil {
+				log.Printf("Error encoding")
+			}
 		}
 
 		if err := cacheProvider.Set(originalImageKey, originalBuf); err != nil {
@@ -172,16 +189,13 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		fromWhere = "network"
 	}
 
-	switch contentType {
-	case "image/png":
+	switch extension {
+	case "png":
 		png.Encode(w, imageResized)
-		log.Printf("[%s] Successfully handled content type '%s Delivered in %f s'\n", fromWhere, contentType, time.Since(start).Seconds())
-	case "image/jpeg":
+		log.Printf("[%s] Successfully handled content type '%s Delivered in %f s'\n", fromWhere, "image/png", time.Since(start).Seconds())
+	case "jpg":
 		jpeg.Encode(w, imageResized, nil)
-		log.Printf("[%s] Successfully handled content type '%s'  Delivered in %f s\n", fromWhere, contentType, time.Since(start).Seconds())
-	case "binary/octet-stream":
-		jpeg.Encode(w, imageResized, nil)
-		log.Printf("[%s] Successfully handled content type '%s'  Delivered in %f s\n", fromWhere, contentType, time.Since(start).Seconds())
+		log.Printf("[%s] Successfully handled content type '%s'  Delivered in %f s\n", fromWhere, "image/jpeg", time.Since(start).Seconds())
 	default:
 		log.Printf("[%s ]Cannot handle content type '%s'  Delivered in %f s\n", fromWhere, contentType, time.Since(start).Seconds())
 	}
@@ -245,8 +259,8 @@ func main() {
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port),
 		Handler: rtr,
-		ReadTimeout: 3 * time.Second,
-		WriteTimeout: 10 * time.Second,
+//		ReadTimeout: 3 * time.Second,
+//		WriteTimeout: 10 * time.Second,
 	}
 
 	server.ListenAndServe()
