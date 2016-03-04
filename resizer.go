@@ -199,6 +199,8 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 
 	// set expiration time
 	w.Header().Set("Cache-Control", "max-age=86400, s-maxage=86400")
+	cacheUntil := time.Now().AddDate(0, 0, 1).Format(http.TimeFormat)
+	w.Header().Set("Expires", cacheUntil)
 
 	switch extension {
 	case "png":
