@@ -198,7 +198,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// set expiration time
-	w.Header().Set("Cache-Control", "max-age=86400")
+	w.Header().Set("Cache-Control", "max-age=86400, s-max-age=86400")
 
 	switch extension {
 	case "png":
@@ -211,6 +211,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[%s ]Cannot handle content type '%s'  Delivered in %f s\n", fromWhere, contentType, time.Since(start).Seconds())
 	}
 
+	log.Printf("Original Url %s %s", r.URL.Path, r.URL.RawQuery)
 	log.Printf("[%s] id: %s t: %s width: %d height: %d givenSize: %s", fromWhere, imageId, timestamp, size.Width, size.Height, params["size"])
 
 	// free memory
