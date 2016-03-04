@@ -1,6 +1,6 @@
 {
   "port": 8080,
-  "cachethumbnails": true,
+  "cachethumbnails": false,
   "imagehost": "https://s3-eu-west-1.amazonaws.com/hf-recipes/",
   "hostwhitelist": [
     "my-cdn-image.com",
