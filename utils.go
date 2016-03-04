@@ -111,7 +111,6 @@ func FormatError(err error, w http.ResponseWriter) {
 // Parse a given string into a uint value
 func parseInteger(value string) (uint, error) {
 	integer, err := strconv.ParseFloat(value, 64)
-	log.Printf("%d", uint(integer))
 	return uint(integer), err
 }
 
