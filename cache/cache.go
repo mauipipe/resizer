@@ -9,6 +9,7 @@ import (
 	"image"
 	"image/png"
 	"image/jpeg"
+	"fmt"
 )
 
 type CacheStats struct {
@@ -63,11 +64,13 @@ func (self *CacheProvider) Contains(key string) bool {
 		return true
 	}
 
-	return self.CacheAdapter.Has(key)
+	return false
 }
 
 // Get the content from a cache key
 func (self *CacheProvider ) Get(key string, extension string) (image.Image, error) {
+	var decodedImage image.Image
+
 	if self.LruCache.Enabled && lruCache.Contains(key) {
 		buffer, found := lruCache.Get(key)
 		bufferInBytes := buffer.([]byte)
@@ -75,7 +78,7 @@ func (self *CacheProvider ) Get(key string, extension string) (image.Image, erro
 		if found {
 			cacheStats.hitLru()
 			reader := ioutil.NopCloser(bytes.NewReader(bufferInBytes))
-			var decodedImage image.Image
+
 			var err error
 
 			if extension == "png" {
@@ -92,24 +95,7 @@ func (self *CacheProvider ) Get(key string, extension string) (image.Image, erro
 		}
 	}
 
-	cacheStats.hitFileCache()
-
-	reader, err := self.CacheAdapter.ReadStream(key, true)
-
-	var decodedImage image.Image
-
-	if extension == "png" {
-		decodedImage, err = png.Decode(reader)
-	}
-
-	if extension == "jpg" {
-		decodedImage, err = jpeg.Decode(reader)
-	}
-
-	if err != nil {
-		self.Delete(key)
-	}
-
+	err := fmt.Errorf("Error getting image")
 	return decodedImage, err
 }
 
@@ -123,9 +109,9 @@ func (self *CacheProvider) Set(key string, r io.Reader) error {
 		}
 	}
 
-	cacheStats.missFileCache()
-
-	return self.CacheAdapter.WriteStream(key, r, true)
+	var err error
+	err = fmt.Errorf("Not possible to set")
+	return err
 }
 
 // Delete item from cache
@@ -134,7 +120,9 @@ func (self *CacheProvider) Delete(key string) error {
 		lruCache.Remove(key)
 	}
 
-	return self.CacheAdapter.Erase(key)
+	var err error
+	err = fmt.Errorf("Not possible to delete")
+	return err
 }
 
 // Delete whole cache

@@ -67,6 +67,11 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 
 	// Build caching key
 	imageId := ExtractIdFromUrl(imageUrl)
+	if imageId == "" {
+		FormatError(fmt.Errorf("Request without id"), w)
+		return
+	}
+
 	key := fmt.Sprintf("%s_%s_%d_%d", imageId, timestamp, size.Height, size.Width)
 
 	if config.Cachethumbnails && cacheProvider.Contains(key) {
@@ -206,7 +211,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[%s ]Cannot handle content type '%s'  Delivered in %f s\n", fromWhere, contentType, time.Since(start).Seconds())
 	}
 
-	log.Printf("[%s] id: %s width: %d height: %d givenSize: %s", fromWhere, imageId, size.Width, size.Height, params["size"])
+	log.Printf("[%s] id: %s t: %s width: %d height: %d givenSize: %s", fromWhere, imageId, timestamp, size.Width, size.Height, params["size"])
 
 	// free memory
 	debug.FreeOSMemory()

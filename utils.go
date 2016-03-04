@@ -64,7 +64,7 @@ func GetExtension(givenUrl string) string {
 	urlParsed, _ := url.Parse(givenUrl)
 	parts := strings.Split(urlParsed.Path, ".")
 
-	if parts[1] != "" {
+	if len(parts) > 1 && parts[1] != "" {
 		return parts[1]
 	}
 
