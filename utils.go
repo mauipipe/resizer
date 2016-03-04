@@ -12,7 +12,6 @@ import (
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/peterbourgon/diskv"
 	"path/filepath"
 	"net/url"
-	"log"
 )
 
 const (
