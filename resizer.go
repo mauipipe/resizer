@@ -1,7 +1,7 @@
 package main
 
 import (
-//	"bytes"
+	"bytes"
 	"fmt"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/nfnt/resize"
@@ -30,6 +30,7 @@ type Configuration struct {
 	SizeLimits      Size
 	Placeholders    []Placeholder
 	Warmupsizes     []Size
+	Cacheenabled 	bool
 	Cachethumbnails bool
 }
 
@@ -72,23 +73,23 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-//	key := fmt.Sprintf("%s_%s_%d_%d", imageId, timestamp, size.Height, size.Width)
-//
-//	if config.Cachethumbnails && cacheProvider.Contains(key) {
-//		finalImage, _ := cacheProvider.Get(key, extension)
-//		jpeg.Encode(w, finalImage, nil)
-//		return
-//	}
+	key := fmt.Sprintf("%s_%s_%d_%d", imageId, timestamp, size.Height, size.Width)
+
+	if config.Cacheenabled && config.Cachethumbnails && cacheProvider.Contains(key) {
+		finalImage, _ := cacheProvider.Get(key, extension)
+		jpeg.Encode(w, finalImage, nil)
+		return
+	}
 
 	// Download the image
-	//originalImageKey := fmt.Sprintf("%s_%s_original", imageId, timestamp)
+	originalImageKey := fmt.Sprintf("%s_%s_original", imageId, timestamp)
 
 	imageBuffer := new(http.Response)
 	var cachedHit bool
 
-//	if cacheProvider.Contains(originalImageKey) {
-//		cachedHit = true
-//	} else {
+	if config.Cacheenabled && cacheProvider.Contains(originalImageKey) {
+		cachedHit = true
+	} else {
 		cachedHit = false
 		var err error
 
@@ -100,7 +101,7 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 		}
 
 		defer imageBuffer.Body.Close()
-//	}
+	}
 
 	defer r.Body.Close()
 
@@ -110,8 +111,9 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var finalImage image.Image
+	var err error
 
-//	if cachedHit == false {
+	if cachedHit == false {
 		if extension == "png" {
 			finalImage, err = png.Decode(imageBuffer.Body)
 		}
@@ -120,25 +122,29 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 			finalImage, err = jpeg.Decode(imageBuffer.Body)
 		}
 
-//		if err != nil {
-//			_ = cacheProvider.Delete(originalImageKey)
-//			_ = cacheProvider.Delete(key)
-//			log.Printf("Error jpeg.decode")
-//
-//			FormatError(err, w)
-//			return
-//		}
-//	} else {
-//		var err error
-//		finalImage, err = cacheProvider.Get(originalImageKey, extension)
-//
-//		if err != nil {
-//			log.Printf("Error reading stream %s", err)
-//
-//			FormatError(err, w)
-//			return
-//		}
-//	}
+		if err != nil {
+			if config.Cacheenabled {
+				_ = cacheProvider.Delete(originalImageKey)
+				_ = cacheProvider.Delete(key)
+			}
+			log.Printf("Error jpeg.decode")
+
+			FormatError(err, w)
+			return
+		}
+	} else {
+		if config.Cacheenabled {
+			var err error
+			finalImage, err = cacheProvider.Get(originalImageKey, extension)
+
+			if err != nil {
+				log.Printf("Error reading stream %s", err)
+
+				FormatError(err, w)
+				return
+			}
+		}
+	}
 
 	// calculate aspect ratio
 	if size.Width > 0 && size.Height > 0 {
@@ -159,35 +165,35 @@ func resizing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// store image to cache
-//	if config.Cachethumbnails {
-//		buf := new(bytes.Buffer)
-//		_ = jpeg.Encode(buf, imageResized, nil)
-//		if err := cacheProvider.Set(key, buf); err != nil {
-//			FormatError(err, w)
-//			return
-//		}
-//	}
+	if config.Cacheenabled && config.Cachethumbnails {
+		buf := new(bytes.Buffer)
+		_ = jpeg.Encode(buf, imageResized, nil)
+		if err := cacheProvider.Set(key, buf); err != nil {
+			FormatError(err, w)
+			return
+		}
+	}
 
-//	if cachedHit == false {
-//		originalBuf := new(bytes.Buffer)
-//
-//		if extension == "png" {
-//			if err = png.Encode(originalBuf, finalImage); err != nil {
-//				log.Printf("Error encoding")
-//			}
-//		}
-//
-//		if extension == "jpg" {
-//			if err = jpeg.Encode(originalBuf, finalImage, nil); err != nil {
-//				log.Printf("Error encoding")
-//			}
-//		}
-//
-//		if err := cacheProvider.Set(originalImageKey, originalBuf); err != nil {
-//			FormatError(err, w)
-//			return
-//		}
-//	}
+	if config.Cacheenabled && cachedHit == false {
+		originalBuf := new(bytes.Buffer)
+
+		if extension == "png" {
+			if err = png.Encode(originalBuf, finalImage); err != nil {
+				log.Printf("Error encoding")
+			}
+		}
+
+		if extension == "jpg" {
+			if err = jpeg.Encode(originalBuf, finalImage, nil); err != nil {
+				log.Printf("Error encoding")
+			}
+		}
+
+		if err := cacheProvider.Set(originalImageKey, originalBuf); err != nil {
+			FormatError(err, w)
+			return
+		}
+	}
 
 	var fromWhere string
 	if cachedHit {
@@ -252,7 +258,7 @@ func purgeCache(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	runtime.GOMAXPROCS(3)
+	runtime.GOMAXPROCS(MaxParallelism())
 	// Load configuration
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")

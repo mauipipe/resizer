@@ -12,6 +12,8 @@ import (
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/peterbourgon/diskv"
 	"path/filepath"
 	"net/url"
+	"runtime"
+	"log"
 )
 
 const (
@@ -100,6 +102,20 @@ func GetClient() *http.Client {
 	}
 
 	return client
+}
+
+// Get max number of logical cpus we can use
+func MaxParallelism() int {
+	maxProcs := runtime.GOMAXPROCS(0)
+	numCPU := runtime.NumCPU()
+
+	log.Printf("MaxProcs: %d, numCPU: %d", maxProcs, numCPU)
+
+	if maxProcs < numCPU {
+		return maxProcs
+	}
+
+	return numCPU
 }
 
 // Return a given error in JSON format to the ResponseWriter
