@@ -233,7 +233,7 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	dirSize, err := DirSize(os.Getenv("RESIZER_CACHE_PATH"))
 
 	if dirSize > 0 {
-		totalSize = float32(dirSize) / 1048576
+		totalSize = float32(dirSize) / 1024
 	}
 
 	if err != nil {
