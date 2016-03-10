@@ -274,7 +274,6 @@ func main() {
 	rtr.HandleFunc("/resize/{size}/{path:(.*)}", resizing).Methods("GET")
 	rtr.HandleFunc("/health-check", healthCheck).Methods("GET")
 	rtr.HandleFunc("/purge", purgeCache).Methods("GET")
-	rtr.HandleFunc("/warmup", warmUp).Methods("GET")
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port),

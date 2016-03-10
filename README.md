@@ -34,6 +34,9 @@ For example you can do something like this:
 
 ```json
 {
+    "port": 8080,
+    "cacheenabled": false,
+    "cachethumbnails": false,
     "imagehost": "https://amazon.s3.bucket.com",
     "hostwhitelist": [
         "([a-z]+).supercdn.com"
@@ -81,6 +84,23 @@ This endpoints returns a 200 http code and a json payload if everything is alrig
 }
 ```
 
+##### Resizing
+
+This endpoint expects the new size and file path to the file in S3.
+
+URL: /resize/{size}/{path}
+
+Size (string): Should be like 200,200 (width , height)
+Path: /mybucket/images/thisisanimage.jpg
+
+At the moment this supports PNG and JPG images.
+
+##### Purge
+
+This endpoints clears the file system cache.
+
+URL: /purge
+
 #### Testing
 
 At the moment this service lacks lot of tests in many places.
@@ -96,6 +116,8 @@ This service relies on top of some great packages like:
 - https://github.com/spf13/viper
 - https://github.com/nfnt/resize
 - https://github.com/gorilla/mux
+- https://github.com/peterbourgon/diskv
+- https://github.com/hashicorp/golang-lru
 
 #### Run with Docker
 
