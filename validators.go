@@ -41,7 +41,7 @@ func (v *Validator) CheckRequestNewSize(s *Size) error {
 		return error(fmt.Errorf("Height cannot be higher than %d", v.config.SizeLimits.Height))
 	}
 
-	if s.Width >= v.config.SizeLimits.Width ||  s.Height >= v.config.SizeLimits.Height {
+	if s.Width >= v.config.SizeLimits.Width || s.Height >= v.config.SizeLimits.Height {
 		return error(fmt.Errorf("Width cannot be higher than %d", v.config.SizeLimits.Width))
 	}
 

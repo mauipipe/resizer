@@ -1,0 +1,62 @@
+hash: 38e219c175a0096fa3fcfe2581e6afc62d6a91c7c3b59a6418c308aaee0d1ba2
+updated: 2017-04-25T01:46:39.049415182+02:00
+imports:
+- name: github.com/fsnotify/fsnotify
+  version: 4da3e2cfbabc9f751898f250b49f2439785783a1
+- name: github.com/gorilla/context
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
+- name: github.com/gorilla/mux
+  version: 392c28fe23e1c45ddba891b0320b3b5df220beea
+- name: github.com/hashicorp/hcl
+  version: 578dd9746824a54637686b51a41bad457a56bcef
+  subpackages:
+  - hcl/ast
+  - hcl/parser
+  - hcl/scanner
+  - hcl/strconv
+  - hcl/token
+  - json/parser
+  - json/scanner
+  - json/token
+- name: github.com/hellofresh/resizer
+  version: 6c139d832438c0a069d6a70d1d836b0e54bc84cb
+  subpackages:
+  - Godeps/_workspace/src/github.com/hashicorp/golang-lru
+  - Godeps/_workspace/src/github.com/hashicorp/golang-lru/simplelru
+  - Godeps/_workspace/src/github.com/petar/GoLLRB/llrb
+  - Godeps/_workspace/src/github.com/peterbourgon/diskv
+  - cache
+- name: github.com/magiconair/properties
+  version: c81f9d71af8f8cba1466501d30326b99a4e56c19
+- name: github.com/mitchellh/mapstructure
+  version: 281073eb9eb092240d33ef253c404f1cca550309
+- name: github.com/nfnt/resize
+  version: 891127d8d1b52734debe1b3c3d7e747502b6c366
+- name: github.com/pelletier/go-buffruneio
+  version: c37440a7cf42ac63b919c752ca73a85067e05992
+- name: github.com/pelletier/go-toml
+  version: fe206efb84b2bc8e8cfafe6b4c1826622be969e3
+- name: github.com/spf13/afero
+  version: 9be650865eab0c12963d8753212f4f9c66cdcf12
+  subpackages:
+  - mem
+- name: github.com/spf13/cast
+  version: ee7b3e0353166ab1f3a605294ac8cd2b77953778
+- name: github.com/spf13/jwalterweatherman
+  version: d00654080cddbd2b082acaa74007cb94a2b40866
+- name: github.com/spf13/pflag
+  version: 7f60f83a2c81bc3c3c0d5297f61ddfa68da9d3b7
+- name: github.com/spf13/viper
+  version: 0967fc9aceab2ce9da34061253ac10fb99bba5b2
+- name: golang.org/x/sys
+  version: 8c0a5eacbac818f9011015b17992f53d9cec3e8f
+  subpackages:
+  - unix
+- name: golang.org/x/text
+  version: a9a820217f98f7c8a207ec1e45a874e1fe12c478
+  subpackages:
+  - transform
+  - unicode/norm
+- name: gopkg.in/yaml.v2
+  version: f7716cbe52baa25d2e9b0d0da546fcf909fc16b4
+testImports: []

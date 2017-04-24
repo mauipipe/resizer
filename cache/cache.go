@@ -1,35 +1,35 @@
 package cache
 
 import (
-	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/peterbourgon/diskv"
-	"io"
-	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/hashicorp/golang-lru"
-	"io/ioutil"
 	"bytes"
+	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/hashicorp/golang-lru"
+	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/peterbourgon/diskv"
 	"image"
-	"image/png"
 	"image/jpeg"
+	"image/png"
+	"io"
+	"io/ioutil"
 )
 
 type CacheStats struct {
-	FileCacheHits 		uint64
-	FileCacheMisses		uint64
-	LruCacheHits		uint64
-	LruCacheMisses		uint64
+	FileCacheHits   uint64
+	FileCacheMisses uint64
+	LruCacheHits    uint64
+	LruCacheMisses  uint64
 }
 
 type CacheProvider struct {
-	CacheAdapter 		*diskv.Diskv
-	LruCache		 	LruCacheConfiguration
+	CacheAdapter *diskv.Diskv
+	LruCache     LruCacheConfiguration
 }
 
 type LruCacheConfiguration struct {
-	Enabled		bool
-	Size 		int32
+	Enabled bool
+	Size    int32
 }
 
-var lruCache 	*lru.Cache
-var cacheStats 	*CacheStats
+var lruCache *lru.Cache
+var cacheStats *CacheStats
 
 func init() {
 	lruCache, _ = lru.New(2048)
@@ -67,7 +67,7 @@ func (self *CacheProvider) Contains(key string) bool {
 }
 
 // Get the content from a cache key
-func (self *CacheProvider ) Get(key string, extension string) (image.Image, error) {
+func (self *CacheProvider) Get(key string, extension string) (image.Image, error) {
 	if self.LruCache.Enabled && lruCache.Contains(key) {
 		buffer, found := lruCache.Get(key)
 		bufferInBytes := buffer.([]byte)

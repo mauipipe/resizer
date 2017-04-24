@@ -1,24 +1,24 @@
 package main
 
 import (
-	"strings"
-	"path"
-	"github.com/hellofresh/resizer/cache"
-	"os"
-	"net/http"
-	"time"
 	"fmt"
-	"strconv"
 	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/peterbourgon/diskv"
-	"path/filepath"
-	"net/url"
-	"runtime"
+	"github.com/hellofresh/resizer/cache"
 	"log"
+	"net/http"
+	"net/url"
+	"os"
+	"path"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"time"
 )
 
 const (
 	transformBlockSize = 5 // grouping of chars per directory depth
-	requestTimeout = 5
+	requestTimeout     = 5
 )
 
 // Get id from a given url
@@ -41,7 +41,7 @@ func SetCacheProvider() cache.CacheProvider {
 		CacheAdapter: cacheAdapter,
 		LruCache: cache.LruCacheConfiguration{
 			Enabled: true,
-			Size: 128,
+			Size:    128,
 		},
 	}
 }

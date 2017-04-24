@@ -3,24 +3,24 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/gorilla/mux"
-	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/nfnt/resize"
-	"github.com/hellofresh/resizer/Godeps/_workspace/src/github.com/spf13/viper"
+	"github.com/gorilla/mux"
+	"github.com/nfnt/resize"
+	"github.com/spf13/viper"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"log"
 	"net/http"
-	"runtime"
-	"time"
-	"runtime/debug"
 	"os"
+	"runtime"
+	"runtime/debug"
+	"time"
 )
 
 var (
-	httpClient 		*http.Client
-	config     		*Configuration
-    cacheProvider 	= SetCacheProvider()
+	httpClient    *http.Client
+	config        *Configuration
+	cacheProvider = SetCacheProvider()
 )
 
 type Configuration struct {
@@ -30,7 +30,7 @@ type Configuration struct {
 	SizeLimits      Size
 	Placeholders    []Placeholder
 	Warmupsizes     []Size
-	Cacheenabled 	bool
+	Cacheenabled    bool
 	Cachethumbnails bool
 }
 
@@ -255,32 +255,4 @@ func purgeCache(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprint(w, fmt.Sprintf("OK"))
-}
-
-func main() {
-	runtime.GOMAXPROCS(MaxParallelism())
-	// Load configuration
-	viper.SetConfigName("config")
-	viper.AddConfigPath(".")
-
-	if err := viper.ReadInConfig(); err != nil {
-		panic(fmt.Errorf("Fatal error loading configuration file: %s", err))
-	}
-
-	// Marshal the configuration into our Struct
-	viper.Unmarshal(&config)
-
-	rtr := mux.NewRouter()
-	rtr.HandleFunc("/resize/{size}/{path:(.*)}", resizing).Methods("GET")
-	rtr.HandleFunc("/health-check", healthCheck).Methods("GET")
-	rtr.HandleFunc("/purge", purgeCache).Methods("GET")
-
-	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", config.Port),
-		Handler: rtr,
-//		ReadTimeout: 3 * time.Second,
-//		WriteTimeout: 10 * time.Second,
-	}
-
-	server.ListenAndServe()
 }

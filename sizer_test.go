@@ -16,7 +16,7 @@ func Test_CheckAspectRatioWithHeightAndWidth(t *testing.T) {
 	sizer := Sizer{requestedSize}
 	aspectRatioSize := sizer.calculateAspectRatio(3180, 2120)
 
-	if (aspectRatioSize.Height != 290 && aspectRatioSize.Width != 193) {
+	if aspectRatioSize.Height != 290 && aspectRatioSize.Width != 193 {
 		t.Errorf("Expect width %d and height %d", aspectRatioSize.Width, aspectRatioSize.Height)
 	}
 }
